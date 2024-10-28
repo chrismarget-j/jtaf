@@ -2,10 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/xml"
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 )
 
 func main() {
@@ -25,8 +25,10 @@ func main() {
 
 	xPaths, err := deviceConfigXpaths(cfg.DeviceConfigFile)
 	if err != nil {
-		log.Fatal(fmt.Errorf("while parsing user config xpaths - %w", err))
+		log.Fatal(fmt.Errorf("while parsing user config Xpaths - %w", err))
 	}
 
-	fmt.Print(strings.Join(xPaths, "\n") + "\n")
+	//fmt.Print(strings.Join(xPaths, "\n") + "\n")
+	b, err := xml.MarshalIndent(xPaths, "", "  ")
+	fmt.Print(string(b) + "\n")
 }

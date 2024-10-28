@@ -12,14 +12,21 @@ import (
 	"golang.org/x/exp/constraints"
 )
 
-// orderedKeys returns a sorted slice of map keys
-func orderedKeys[A constraints.Ordered, B interface{}](m map[A]B) []A {
+// keys returns a slice of map keys
+func keys[A comparable, B interface{}](m map[A]B) []A {
 	result := make([]A, len(m))
 	i := 0
 	for k := range m {
 		result[i] = k
 		i++
 	}
+
+	return result
+}
+
+// orderedKeys returns a sorted slice of map keys
+func orderedKeys[A constraints.Ordered, B interface{}](m map[A]B) []A {
+	result := keys(m)
 
 	sort.Slice(result, func(i, j int) bool {
 		return result[i] < result[j]

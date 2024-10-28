@@ -11,12 +11,23 @@ import (
 
 const xPathSep = "/"
 
+type Xpath struct {
+	Name string `xml:"name,attr"`
+}
+
+type Xpaths struct {
+	XMLName struct{} `xml:"file-list"`
+	Xpaths  []Xpath  `xml:"xpath"`
+}
+
 // deviceConfigXpaths reads the specified XML file and returns []string
 // representing the deepest paths encountered while parsing the file.
-func deviceConfigXpaths(filename string) ([]string, error) {
+func deviceConfigXpaths(filename string) (Xpaths, error) {
+	var result Xpaths
+
 	f, err := os.Open(filename)
 	if err != nil {
-		return nil, fmt.Errorf("while opening device config file %q - %w", filename, err)
+		return result, fmt.Errorf("while opening device config file %q - %w", filename, err)
 	}
 	defer func(closer io.Closer) { _ = closer.Close() }(f) // ignoring the error on read seems reasonable
 
@@ -32,7 +43,7 @@ func deviceConfigXpaths(filename string) ([]string, error) {
 				break
 			}
 
-			return nil, fmt.Errorf("while getting xml token - %w", err)
+			return result, fmt.Errorf("while getting xml token - %w", err)
 		}
 
 		switch tok := tok.(type) {
@@ -56,5 +67,10 @@ func deviceConfigXpaths(filename string) ([]string, error) {
 		}
 	}
 
-	return orderedKeys(xPathMap), nil
+	result.Xpaths = make([]Xpath, len(xPathMap))
+	for i, xpath := range orderedKeys(xPathMap) {
+		result.Xpaths[i] = Xpath{Name: xpath}
+	}
+
+	return result, nil
 }
