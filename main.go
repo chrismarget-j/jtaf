@@ -2,11 +2,9 @@ package main
 
 import (
 	"context"
-	"encoding/xml"
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 )
 
 const xpathFile = "xpath_inputs.xml"
@@ -26,18 +24,8 @@ func main() {
 		log.Fatal(fmt.Errorf("while populating yang cache - %w", err))
 	}
 
-	xPaths, err := deviceConfigXpaths(cfg.DeviceConfigFile)
+	err = deviceConfigXpathsToFile(cfg.DeviceConfigFile, xpathFile)
 	if err != nil {
-		log.Fatal(fmt.Errorf("while parsing user config Xpaths - %w", err))
-	}
-
-	b, err := xml.MarshalIndent(xPaths, "", "  ")
-	if err != nil {
-		log.Fatal(fmt.Errorf("while marshaling xpaths from device configuration - %w", err))
-	}
-
-	err = os.WriteFile(xpathFile, b, 0o644)
-	if err != nil {
-		log.Fatal(fmt.Errorf("while writing xpath data to %q - %w", xpathFile, err))
+		log.Fatal(fmt.Errorf("while parsing device configs and writing to xpath file - %w", err))
 	}
 }

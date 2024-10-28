@@ -74,3 +74,22 @@ func deviceConfigXpaths(filename string) (Xpaths, error) {
 
 	return result, nil
 }
+
+func deviceConfigXpathsToFile(in, out string) error {
+	xPaths, err := deviceConfigXpaths(in)
+	if err != nil {
+		return fmt.Errorf("while parsing device config %q - %w", in, err)
+	}
+
+	b, err := xml.MarshalIndent(xPaths, "", "  ")
+	if err != nil {
+		fmt.Errorf("while marshaling xpaths from device configuration - %w", err)
+	}
+
+	err = os.WriteFile(xpathFile, b, 0o644)
+	if err != nil {
+		fmt.Errorf("while writing xpath data to %q - %w", xpathFile, err)
+	}
+
+	return nil
+}
