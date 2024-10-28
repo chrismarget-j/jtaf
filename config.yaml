@@ -1,9 +1,24 @@
 ---
 github_owner_name: Juniper
 github_repo_name: yang
-# git_ref: 7b78516fc72c3df5292084cbbf18344562bb2dd8
 git_ref: master
 cache_dir: /tmp/.jtaf_cache
 device_config_file: test_data/test.xml
 platform: vptx
 junos_version: 23.1R1
+yang_patches:
+  - original_git_sha: 0acaaa26d84570516d6983a4d9211969b743b916
+    required_sha_256: 07ef6ddc587977d652ecdc9a0b84486171da34cda7081ff78578c1542addf73a
+    diff: |
+      diff --git a/23.1/23.1R1/junos/conf/junos-conf-system@2023-01-01.yang b/23.1/23.1R1/junos/conf/junos-conf-system@2023-01-01.yang
+      index 0acaaa26..5d699f50 100644
+      --- a/23.1/23.1R1/junos/conf/junos-conf-system@2023-01-01.yang
+      +++ b/23.1/23.1R1/junos/conf/junos-conf-system@2023-01-01.yang
+      @@ -7185,7 +7185,6 @@
+              container traceoptions {
+                description "Autoconfiguration trace options";
+                status deprecated;
+      -         uses autoconf_traceoptions_type;
+              }
+            }
+            container processes {

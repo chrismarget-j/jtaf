@@ -3,13 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/google/go-github/v66/github"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"path"
 	"regexp"
+
+	"github.com/google/go-github/v66/github"
 )
 
 const (
@@ -71,12 +71,12 @@ func platformYangFilesRepositoryContent(ctx context.Context, cfg jtafConfig, cli
 func yangFilesRepositoryContent(ctx context.Context, cfg jtafConfig, client *github.Client) (map[string]github.RepositoryContent, error) {
 	commonYangFiles, err := commonYangFilesRepositoryContent(ctx, cfg, client)
 	if err != nil {
-		log.Fatal(fmt.Errorf("while getting common yang file URLs - %w", err))
+		return nil, fmt.Errorf("while getting common yang file URLs - %w", err)
 	}
 
 	platformYangFiles, err := platformYangFilesRepositoryContent(ctx, cfg, client)
 	if err != nil {
-		log.Fatal(fmt.Errorf("while getting platform yang file URLs - %w", err))
+		return nil, fmt.Errorf("while getting platform yang file URLs - %w", err)
 	}
 
 	// Stick common files into the platform file map to unify the maps
@@ -109,14 +109,14 @@ func yangFilesRepositoryContent(ctx context.Context, cfg jtafConfig, client *git
 
 // isCached checks whether the file described by the github.RepositoryContent is
 // cached at the supplied filename.
-func isCached(filename string, content github.RepositoryContent) (bool, error) {
+func isCached(fileName string, cfg jtafConfig, content github.RepositoryContent) (bool, error) {
 	if content.SHA == nil {
 		return false, fmt.Errorf("cannot validate cache entry because content shasum is nil")
 	}
 
-	fi, err := os.Stat(filename)
+	fi, err := os.Stat(fileName)
 	if err != nil && !os.IsNotExist(err) {
-		return false, fmt.Errorf("while stat-ing file %q - %w", filename, err)
+		return false, fmt.Errorf("while stat-ing file %q - %w", fileName, err)
 	}
 
 	if os.IsNotExist(err) {
@@ -124,19 +124,19 @@ func isCached(filename string, content github.RepositoryContent) (bool, error) {
 	}
 
 	if fi.IsDir() {
-		return false, fmt.Errorf("%q is a directory, expected file", filename)
+		return false, fmt.Errorf("%q is a directory, expected file", fileName)
 	}
 
-	gs, err := gitSha(filename, fi.Size())
+	if yp, ok := cfg.YangPatches[*content.SHA]; ok {
+		err = checkSha256(fileName, yp.RequiredSha256) // check the expected post-patch hash
+	} else {
+		err = checkGitSha(fileName, fi.Size(), *content.SHA) // check the expected git hash
+	}
 	if err != nil {
-		return false, fmt.Errorf("while calculating git sha - %w", err)
+		return false, fmt.Errorf("while checking cached file %q - %w", fileName, err)
 	}
 
-	if *content.SHA == fmt.Sprintf("%x", gs) {
-		return true, nil
-	}
-
-	return false, fmt.Errorf("file %q expected git-sha hash %q got %q", filename, *content.SHA, fmt.Sprintf("%x", gs))
+	return true, nil
 }
 
 // targetFileName returns the filesystem location where the github.RepositoryContent should be stored,
@@ -148,39 +148,32 @@ func targetFileName(cfg jtafConfig, content github.RepositoryContent) string {
 // cacheRepositoryContent downloads a github.RepositoryContent into the cache dir
 // selected by the jtafConfig. The returned string is the path to the cached file.
 func cacheRepositoryContent(ctx context.Context, cfg jtafConfig, client *http.Client, content github.RepositoryContent) (string, error) {
-	if content.Path == nil {
-		return "", fmt.Errorf("requested content has nil Path element")
-	}
-
 	if content.DownloadURL == nil {
 		return "", fmt.Errorf("requested content has nil DownloadURL element")
 	}
 
+	if content.Path == nil {
+		return "", fmt.Errorf("requested content has nil Path element")
+	}
+
+	if content.SHA == nil {
+		return "", fmt.Errorf("requested content has nil SHA element")
+	}
+
 	targetName := targetFileName(cfg, content)
 
-	ok, err := isCached(targetName, content)
+	ok, err := isCached(targetName, cfg, content)
 	if err != nil {
 		return "", fmt.Errorf("while checking cache for %q - %w", path.Join(cfg.repoPath(), *content.Path), err)
 	}
 	if ok {
-		return targetFileName(cfg, content), nil
+		return targetName, nil
 	}
 
 	err = os.MkdirAll(path.Dir(targetName), 0o755)
 	if err != nil {
 		return "", fmt.Errorf("while creating cache dir %q - %w", path.Dir(targetName), err)
 	}
-
-	tmpFile, err := os.CreateTemp(cfg.BaseCacheDir, "."+path.Base(*content.Path))
-	if err != nil {
-		return "", fmt.Errorf("while making temp download file in %q - %w", cfg.BaseCacheDir, err)
-	}
-	defer func(c io.Closer, name string) {
-		err := c.Close()
-		if err != nil {
-			log.Fatal(fmt.Errorf("while closing temp file %q - %w", name, err))
-		}
-	}(tmpFile, tmpFile.Name())
 
 	req, err := http.NewRequest(http.MethodGet, *content.DownloadURL, nil)
 	if err != nil {
@@ -194,9 +187,32 @@ func cacheRepositoryContent(ctx context.Context, cfg jtafConfig, client *http.Cl
 	}
 	defer func(c io.Closer) { _ = c.Close() }(resp.Body) // ignoring the error on read seems reasonable
 
+	tmpFile, err := os.CreateTemp(cfg.BaseCacheDir, "."+path.Base(*content.Path))
+	if err != nil {
+		return "", fmt.Errorf("while making temp download file in %q - %w", cfg.BaseCacheDir, err)
+	}
+	// do not defer close - we need explicit closeure to apply patches
+
 	_, err = io.Copy(tmpFile, resp.Body)
 	if err != nil {
+		_ = tmpFile.Close()
 		return "", fmt.Errorf("while copying data from %q into temp file %q - %w", req.URL, tmpFile.Name(), err)
+	}
+	err = tmpFile.Close()
+	if err != nil {
+		return "", fmt.Errorf("while closing tempfile %q - %w", path.Join(cfg.BaseCacheDir, tmpFile.Name()), err)
+	}
+
+	if yp, ok := cfg.YangPatches[*content.SHA]; ok {
+		err = applyPatch(tmpFile.Name(), yp)
+		if err != nil {
+			return "", fmt.Errorf("while applying patch to %q - %w", tmpFile.Name(), err)
+		}
+
+		err := checkSha256(tmpFile.Name(), yp.RequiredSha256)
+		if err != nil {
+			return "", fmt.Errorf("failed validating expected checksum (%s) of %q - %w", yp.RequiredSha256, tmpFile.Name(), err)
+		}
 	}
 
 	err = os.Rename(tmpFile.Name(), targetName)
@@ -212,13 +228,13 @@ func populateYangCache(ctx context.Context, cfg jtafConfig, httpClient *http.Cli
 
 	repoPathToRepositoryContent, err := yangFilesRepositoryContent(ctx, cfg, githubClient)
 	if err != nil {
-		log.Fatal(fmt.Errorf("while getting common yang file URLs - %w", err))
+		return fmt.Errorf("while getting common yang file URLs - %w", err)
 	}
 
 	for repoPath, repositoryContent := range repoPathToRepositoryContent {
 		_, err = cacheRepositoryContent(ctx, cfg, httpClient, repositoryContent)
 		if err != nil {
-			log.Fatal(fmt.Errorf("while caching yang file %q - %w", repoPath, err))
+			return fmt.Errorf("while caching yang file %q - %w", path.Join(cfg.yangCacheDir(), repoPath), err)
 		}
 	}
 

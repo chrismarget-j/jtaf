@@ -12,14 +12,12 @@ var (
 	platforms    = enum.New(platformVMX, platformVPTX, platformVQFX, platformVSRX)
 )
 
-var (
-	platformToOsFamily = map[junosPlatform]osFamily{
-		platformVMX:  osFamilyJunos,
-		platformVPTX: osFamilyJunos,
-		platformVQFX: osFamilyJunosQFX,
-		platformVSRX: osFamilyJunosES,
-	}
-)
+var platformToOsFamily = map[junosPlatform]osFamily{
+	platformVMX:  osFamilyJunos,
+	platformVPTX: osFamilyJunos,
+	platformVQFX: osFamilyJunosQFX,
+	platformVSRX: osFamilyJunosES,
+}
 
 type osFamily enum.Member[string]
 

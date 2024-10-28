@@ -3,21 +3,26 @@ package main
 import (
 	"flag"
 	"fmt"
-	"gopkg.in/yaml.v2"
 	"log"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
+
+	"gopkg.in/yaml.v2"
 )
 
 const (
 	junosVersionRegexp = `^((\d\d)\.\d+)R\d+.*`
 )
 
-var (
-	flagC = flag.String("c", "config.yaml", "YAML config file")
-)
+var flagC = flag.String("c", "config.yaml", "YAML config file")
+
+type patch struct {
+	OriginalGitSha string `yaml:"original_git_sha"`
+	RequiredSha256 string `yaml:"required_sha_256"`
+	Patch          string `yaml:"diff"`
+}
 
 type jtafConfig struct {
 	DeviceConfigFile string
@@ -29,6 +34,7 @@ type jtafConfig struct {
 	GithubOwnerName  string
 	GithubRepoName   string
 	BaseCacheDir     string
+	YangPatches      map[string]patch
 }
 
 // mkYangCacheDir returns the yang cache dir and returns whether it needed to be created
@@ -75,13 +81,14 @@ func getConfig() (jtafConfig, error) {
 	}
 
 	var yamlConfig struct {
-		DeviceConfigFile string `yaml:"device_config_file"`
-		Platform         string `yaml:"platform"`
-		JunosVersion     string `yaml:"junos_version"`
-		GitRef           string `yaml:"git_ref"`
-		GithubOwnerName  string `yaml:"github_owner_name"`
-		GithubRepoName   string `yaml:"github_repo_name"`
-		CacheDir         string `yaml:"cache_dir"`
+		DeviceConfigFile string  `yaml:"device_config_file"`
+		Platform         string  `yaml:"platform"`
+		JunosVersion     string  `yaml:"junos_version"`
+		GitRef           string  `yaml:"git_ref"`
+		GithubOwnerName  string  `yaml:"github_owner_name"`
+		GithubRepoName   string  `yaml:"github_repo_name"`
+		CacheDir         string  `yaml:"cache_dir"`
+		YangPatches      []patch `yaml:"yang_patches"`
 	}
 
 	err = yaml.Unmarshal(cfgBytes, &yamlConfig)
@@ -109,6 +116,14 @@ func getConfig() (jtafConfig, error) {
 		return jtafConfig{}, fmt.Errorf("unknown os for junosPlatform %q", p.Value)
 	}
 
+	yangPatches := make(map[string]patch, len(yamlConfig.YangPatches))
+	for _, p := range yamlConfig.YangPatches {
+		yangPatches[p.OriginalGitSha] = p
+	}
+	if len(yangPatches) != len(yamlConfig.YangPatches) {
+		return jtafConfig{}, fmt.Errorf("unexpected patch count - perhaps one of the 'original_git_sha' values appears twice")
+	}
+
 	result := jtafConfig{
 		Platform:         *p,
 		JunosVersion:     yamlConfig.JunosVersion,
@@ -119,6 +134,7 @@ func getConfig() (jtafConfig, error) {
 		DeviceConfigFile: deviceConfigFile,
 		GithubOwnerName:  yamlConfig.GithubOwnerName,
 		GithubRepoName:   yamlConfig.GithubRepoName,
+		YangPatches:      yangPatches,
 	}
 
 	return result, nil
