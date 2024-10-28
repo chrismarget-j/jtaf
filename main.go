@@ -6,7 +6,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 )
+
+const xpathFile = "xpath_inputs.xml"
 
 func main() {
 	ctx := context.Background()
@@ -28,7 +31,13 @@ func main() {
 		log.Fatal(fmt.Errorf("while parsing user config Xpaths - %w", err))
 	}
 
-	//fmt.Print(strings.Join(xPaths, "\n") + "\n")
 	b, err := xml.MarshalIndent(xPaths, "", "  ")
-	fmt.Print(string(b) + "\n")
+	if err != nil {
+		log.Fatal(fmt.Errorf("while marshaling xpaths from device configuration - %w", err))
+	}
+
+	err = os.WriteFile(xpathFile, b, 0o644)
+	if err != nil {
+		log.Fatal(fmt.Errorf("while writing xpath data to %q - %w", xpathFile, err))
+	}
 }
