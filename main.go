@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 )
 
 const xpathFile = "xpath_inputs.xml"
@@ -30,7 +29,7 @@ func main() {
 	//	log.Fatal(fmt.Errorf("while parsing device configs and writing to xpath file - %w", err))
 	//}
 
-	//deviceConfigXpaths()
+	// deviceConfigXpaths()
 
 	breadcrumbTrails, err := getConfigBreadcrumbTrails(cfg.DeviceConfigFile)
 	if err != nil {
@@ -42,8 +41,13 @@ func main() {
 		log.Fatal(fmt.Errorf("while getting %s from %q - %w", yangConfigRoot, cfg.yangCacheDir(), err))
 	}
 
-	fmt.Println(cfgRoot.Name)
-	for _, bct := range breadcrumbTrails {
-		fmt.Println(strings.Join(bct, pathSep))
+	err = yangWalk(cfgRoot, breadcrumbTrails)
+	if err != nil {
+		log.Fatal(fmt.Errorf("while checking config breadcrumbs against yang data - %w", err))
 	}
+
+	//fmt.Println(cfgRoot.Name)
+	//for _, bct := range breadcrumbTrails {
+	//	fmt.Println(strings.Join(bct, pathSep))
+	//}
 }

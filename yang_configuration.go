@@ -30,10 +30,10 @@ func getYangEntryConfigRoot(dirName string) (*yang.Entry, error) {
 		return nil, fmt.Errorf("encountered %d error(s) while parsing entries from yang files - %w", len(errs), err)
 	}
 
-	yangConfiguration, ok := entries[yangConfigRoot]
+	configRootEntry, ok := entries[yangConfigRoot]
 	if !ok {
 		return nil, fmt.Errorf("parsed %d %s files with %d include directories, but failed to find an entry for %s", len(yangFiles), yangSuffix, len(yangIncludePaths), yangConfigRoot)
 	}
 
-	return yangConfiguration, nil
+	return configRootEntry, nil
 }
