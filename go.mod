@@ -6,6 +6,7 @@ go 1.23.1
 
 require (
 	github.com/google/go-github/v66 v66.0.0
+	github.com/openconfig/goyang v1.6.0
 	github.com/orsinium-labs/enum v1.4.0
 	github.com/rsc/tmp v0.0.0-20240808145343-17d2308840b8
 	golang.org/x/exp v0.0.0-20241009180824-f66d83c29e7c
@@ -13,6 +14,7 @@ require (
 )
 
 require (
+	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/rogpeppe/go-internal v1.11.0 // indirect

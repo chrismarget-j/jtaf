@@ -5,8 +5,12 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
+	"log"
 	"os"
+	"path"
+	"path/filepath"
 	"sort"
+	"strings"
 
 	rscpatch "github.com/rsc/tmp/patch"
 	"golang.org/x/exp/constraints"
@@ -123,4 +127,32 @@ func applyPatch(fileName string, p patch) error {
 	}
 
 	return nil
+}
+
+func listFilesWithSuffix(dir, suf string) ([]string, error) {
+	dirEntries, err := os.ReadDir(dir)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var result []string
+	for _, dirEntry := range dirEntries {
+		if dirEntry.IsDir() {
+			continue
+		}
+
+		if !strings.HasSuffix(dirEntry.Name(), suf) {
+			continue
+		}
+
+		filePath := path.Join(dir, dirEntry.Name())
+		abs, err := filepath.Abs(filePath)
+		if err != nil {
+			return nil, fmt.Errorf("while expanding absolute path to %q - %w", filePath, err)
+		}
+
+		result = append(result, abs)
+	}
+
+	return result, nil
 }

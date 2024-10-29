@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 )
 
 const xpathFile = "xpath_inputs.xml"
@@ -24,8 +25,25 @@ func main() {
 		log.Fatal(fmt.Errorf("while populating yang cache - %w", err))
 	}
 
-	err = deviceConfigXpathsToFile(cfg.DeviceConfigFile, xpathFile)
+	//err = deviceConfigXpathsToFile(cfg.DeviceConfigFile, xpathFile)
+	//if err != nil {
+	//	log.Fatal(fmt.Errorf("while parsing device configs and writing to xpath file - %w", err))
+	//}
+
+	//deviceConfigXpaths()
+
+	breadcrumbTrails, err := getConfigBreadcrumbTrails(cfg.DeviceConfigFile)
 	if err != nil {
-		log.Fatal(fmt.Errorf("while parsing device configs and writing to xpath file - %w", err))
+		log.Fatal(fmt.Errorf("while parsing device config file %q - %w", cfg.DeviceConfigFile, err))
+	}
+
+	cfgRoot, err := getYangEntryConfigRoot(cfg.yangCacheDir())
+	if err != nil {
+		log.Fatal(fmt.Errorf("while getting %s from %q - %w", yangConfigRoot, cfg.yangCacheDir(), err))
+	}
+
+	fmt.Println(cfgRoot.Name)
+	for _, bct := range breadcrumbTrails {
+		fmt.Println(strings.Join(bct, pathSep))
 	}
 }
