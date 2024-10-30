@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 
+	jtafCfg "github.com/chrismarget-j/jtaf/config"
 	"github.com/openconfig/goyang/pkg/yang"
 )
 
@@ -14,7 +15,7 @@ const xpathFile = "xpath_inputs.xml"
 func main() {
 	ctx := context.Background()
 
-	cfg, err := getConfig()
+	cfg, err := jtafCfg.Get()
 	if err != nil {
 		log.Fatal(fmt.Errorf("while getting configuration - %w", err))
 	}
@@ -40,7 +41,7 @@ func main() {
 
 	cfgRoot, err := getYangEntryConfigRoot(yangDirs)
 	if err != nil {
-		log.Fatal(fmt.Errorf("while getting %s from %q - %w", yangConfigRoot, cfg.yangCacheDir(), err))
+		log.Fatal(fmt.Errorf("while getting %s from %q - %w", yangConfigRoot, cfg.YangCacheDir(), err))
 	}
 
 	err = yangWalk(cfgRoot, breadcrumbTrails)

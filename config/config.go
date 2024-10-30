@@ -1,4 +1,4 @@
-package main
+package jtafCfg
 
 import (
 	"flag"
@@ -24,31 +24,25 @@ const (
 
 var flagC = flag.String("c", defaultConfigFile, "YAML config file")
 
-type patch struct {
-	OriginalGitSha string `yaml:"original_git_sha"`
-	RequiredSha256 string `yaml:"required_sha_256"`
-	Patch          string `yaml:"diff"`
-}
-
 type githubInfo struct {
 	Owner string
 	Name  string
 	Ref   string
 }
 
-type jtafConfig struct {
-	yamlRepoInfo     githubInfo
+type Cfg struct {
+	YamlRepoInfo     githubInfo
 	DeviceConfigFile string
 	JunosVersion     string
 	JunosFamily      string
 	BaseCacheDir     string
-	YangPatches      map[string]patch
+	YangPatches      map[string]Patch
 	repoYangDir      string
 }
 
 // mkYangCacheDir returns the yang cache dir and returns whether it needed to be created
-func (o *jtafConfig) mkYangCacheDir() (string, bool) {
-	yangCacheDir := o.yangCacheDir()
+func (o *Cfg) mkYangCacheDir() (string, bool) {
+	yangCacheDir := o.YangCacheDir()
 
 	_, err := os.Stat(yangCacheDir)
 	if err != nil && !os.IsNotExist(err) {
@@ -67,38 +61,38 @@ func (o *jtafConfig) mkYangCacheDir() (string, bool) {
 	return yangCacheDir, false
 }
 
-// repoPath returns a string like "github.com/Juniper/yang" or "github.com/Juniper/yang@main"
-func (o *jtafConfig) repoPath() string {
+// RepoPath returns a string like "github.com/Juniper/yang" or "github.com/Juniper/yang@main"
+func (o *Cfg) RepoPath() string {
 	var gitRef string
-	if o.yamlRepoInfo.Ref != "" {
-		gitRef = "@" + o.yamlRepoInfo.Ref
+	if o.YamlRepoInfo.Ref != "" {
+		gitRef = "@" + o.YamlRepoInfo.Ref
 	}
-	return path.Join("github.com", o.yamlRepoInfo.Owner, o.yamlRepoInfo.Name) + gitRef
+	return path.Join("github.com", o.YamlRepoInfo.Owner, o.YamlRepoInfo.Name) + gitRef
 }
 
-// yangCacheDir returns the path to the top-level yang cache directory
-func (o *jtafConfig) yangCacheDir() string {
+// YangCacheDir returns the path to the top-level yang cache directory
+func (o *Cfg) YangCacheDir() string {
 	return path.Clean(path.Join(o.BaseCacheDir, "yang"))
 }
 
-func (o *jtafConfig) junosYangCacheDir() string {
-	ref := o.yamlRepoInfo.Ref
+func (o *Cfg) JunosYangCacheDir() string {
+	ref := o.YamlRepoInfo.Ref
 	if ref != "" && !strings.HasPrefix(ref, "@") {
 		ref = "@" + ref
 	}
-	return path.Clean(path.Join(o.yangCacheDir(), "github.com", o.yamlRepoInfo.Owner, o.yamlRepoInfo.Name, ref))
+	return path.Clean(path.Join(o.YangCacheDir(), "github.com", o.YamlRepoInfo.Owner, o.YamlRepoInfo.Name, ref))
 }
 
-func (o *jtafConfig) otherYangCacheDir() string {
-	return path.Clean(path.Join(o.yangCacheDir(), "ietf"))
+func (o *Cfg) otherYangCacheDir() string {
+	return path.Clean(path.Join(o.YangCacheDir(), "ietf"))
 }
 
-func getConfig() (jtafConfig, error) {
+func Get() (Cfg, error) {
 	flag.Parse()
 
 	cfgBytes, err := os.ReadFile(*flagC)
 	if err != nil {
-		return jtafConfig{}, fmt.Errorf("while reading config file %q - %w", *flagC, err)
+		return Cfg{}, fmt.Errorf("while reading config file %q - %w", *flagC, err)
 	}
 
 	var yamlConfig struct {
@@ -109,12 +103,12 @@ func getConfig() (jtafConfig, error) {
 		GithubOwnerName  string  `yaml:"github_owner_name"`
 		GithubRepoName   string  `yaml:"github_repo_name"`
 		CacheDir         string  `yaml:"cache_dir"`
-		YangPatches      []patch `yaml:"yang_patches"`
+		YangPatches      []Patch `yaml:"yang_patches"`
 	}
 
 	err = yaml.Unmarshal(cfgBytes, &yamlConfig)
 	if err != nil {
-		return jtafConfig{}, fmt.Errorf("while parsing config file %q - %w", *flagC, err)
+		return Cfg{}, fmt.Errorf("while parsing config file %q - %w", *flagC, err)
 	}
 
 	if yamlConfig.GithubOwnerName == "" {
@@ -127,35 +121,35 @@ func getConfig() (jtafConfig, error) {
 
 	deviceConfigFile, err := filepath.Abs(yamlConfig.DeviceConfigFile)
 	if err != nil {
-		return jtafConfig{}, fmt.Errorf("while expanding file path %q - %w", yamlConfig.DeviceConfigFile, err)
+		return Cfg{}, fmt.Errorf("while expanding file path %q - %w", yamlConfig.DeviceConfigFile, err)
 	}
 
 	family := osFamilies.Parse(yamlConfig.Family)
 	if family == nil {
-		return jtafConfig{}, fmt.Errorf("family must be one of %s, got %q", osFamilies.Members(), yamlConfig.Family)
+		return Cfg{}, fmt.Errorf("family must be one of %s, got %q", osFamilies.Members(), yamlConfig.Family)
 	}
 
 	s := regexp.MustCompile(junosVersionRegexp).FindStringSubmatch(yamlConfig.Version)
 	if len(s) != 3 {
-		return jtafConfig{}, fmt.Errorf("failed to parse junos version %q - version should look like 23.1R1 or 23.4R1.10", yamlConfig.Version)
+		return Cfg{}, fmt.Errorf("failed to parse junos version %q - version should look like 23.1R1 or 23.4R1.10", yamlConfig.Version)
 	}
 
-	yangPatches := make(map[string]patch, len(yamlConfig.YangPatches))
+	yangPatches := make(map[string]Patch, len(yamlConfig.YangPatches))
 	for _, p := range yamlConfig.YangPatches {
 		yangPatches[p.OriginalGitSha] = p
 	}
 	if len(yangPatches) != len(yamlConfig.YangPatches) {
-		return jtafConfig{}, fmt.Errorf("unexpected patch count - perhaps one of the 'original_git_sha' values appears twice")
+		return Cfg{}, fmt.Errorf("unexpected Patch count - perhaps one of the 'original_git_sha' values appears twice")
 	}
 
-	result := jtafConfig{
+	result := Cfg{
 		JunosVersion:     yamlConfig.Version,
 		JunosFamily:      family.Value,
 		repoYangDir:      path.Join(s[1], yamlConfig.Version),
 		BaseCacheDir:     yamlConfig.CacheDir,
 		DeviceConfigFile: deviceConfigFile,
 		YangPatches:      yangPatches,
-		yamlRepoInfo: githubInfo{
+		YamlRepoInfo: githubInfo{
 			Owner: yamlConfig.GithubOwnerName,
 			Name:  yamlConfig.GithubRepoName,
 			Ref:   yamlConfig.GitRef,
@@ -165,10 +159,10 @@ func getConfig() (jtafConfig, error) {
 	return result, nil
 }
 
-func (o *jtafConfig) RepoDirYangCommon() string {
+func (o *Cfg) RepoDirYangCommon() string {
 	return path.Join(o.repoYangDir, yangCommonDir)
 }
 
-func (o *jtafConfig) RepoDirYangFamily() string {
+func (o *Cfg) RepoDirYangFamily() string {
 	return path.Join(o.repoYangDir, o.JunosFamily, yangConfDir)
 }

@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 
+	jtafCfg "github.com/chrismarget-j/jtaf/config"
 	rscpatch "github.com/rsc/tmp/patch"
 	"golang.org/x/exp/constraints"
 )
@@ -102,7 +103,7 @@ func checkSha256(filename string, expected string) error {
 	return fmt.Errorf("expected %q to have sha-256 %q", filename, expected)
 }
 
-func applyPatch(fileName string, p patch) error {
+func applyPatch(fileName string, p jtafCfg.Patch) error {
 	origBytes, err := os.ReadFile("/tmp/junos-conf-system@2023-01-01.yang")
 	if err != nil {
 		return fmt.Errorf("while reading %q (git sha %s)to prepare for patching - %w", fileName, p.OriginalGitSha, err)
