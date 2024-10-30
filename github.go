@@ -3,108 +3,62 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/google/go-github/v66/github"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
-	"regexp"
-
-	"github.com/google/go-github/v66/github"
 )
 
-const (
-	commonYangFileRegex = `\/junos-common-types@\d\d\d\d-\d\d-\d\d.yang`
-)
+const envGithubToken = "GITHUB_PUB_API_TOKEN"
 
-// commonYangFilesRepositoryContent returns map[string]github.RepositoryContent keyed by path within the repository.
-// The result describes yang files shared by all platforms described by the jtafConfig
-func commonYangFilesRepositoryContent(ctx context.Context, cfg jtafConfig, client *github.Client) (map[string]github.RepositoryContent, error) {
-	_, directoryContent, _, err := client.Repositories.GetContents(ctx, cfg.GithubOwnerName, cfg.GithubRepoName, cfg.YangDirCommon, nil)
+// repoContentByDir returns map[string]github.RepositoryContent keyed by path within the repository.
+func repoContentByDir(ctx context.Context, dir string, cfg jtafConfig, client *github.Client) (map[string]github.RepositoryContent, error) {
+	_, directoryContent, _, err := client.Repositories.GetContents(ctx, cfg.yamlRepoInfo.Owner, cfg.yamlRepoInfo.Name, dir, &github.RepositoryContentGetOptions{Ref: cfg.yamlRepoInfo.Ref})
 	if err != nil {
-		return nil, fmt.Errorf("while getting repository content %q - %w", path.Join(cfg.GithubOwnerName, cfg.GithubRepoName, cfg.YangDirCommon), err)
-	}
-
-	result := make(map[string]github.RepositoryContent, len(directoryContent))
-	re := regexp.MustCompile(commonYangFileRegex)
-	for i, content := range directoryContent {
-		if content.Path == nil {
-			return nil, fmt.Errorf("content %d from %q has nil Path element", i, path.Join(cfg.repoPath(), cfg.YangDirCommon))
-		}
-
-		if re.MatchString(*content.Path) {
-			result[*content.Path] = *content
-		}
-	}
-	if len(result) == 0 {
-		return nil, fmt.Errorf("no common yang files found in github repo %q path %q using %q", path.Join(cfg.GithubOwnerName, cfg.GithubRepoName), cfg.YangDirCommon, commonYangFileRegex)
-	}
-
-	return result, nil
-}
-
-// platformYangFilesRepositoryContent returns map[string]github.RepositoryContent keyed by path within the repository.
-// The result describes yang files specific to the version and junos described by the jtafConfig
-func platformYangFilesRepositoryContent(ctx context.Context, cfg jtafConfig, client *github.Client) (map[string]github.RepositoryContent, error) {
-	_, directoryContent, _, err := client.Repositories.GetContents(ctx, cfg.GithubOwnerName, cfg.GithubRepoName, cfg.YangDirPlatform, &github.RepositoryContentGetOptions{Ref: cfg.GitRef})
-	if err != nil {
-		return nil, fmt.Errorf("while getting repository content %q - %w", path.Join(cfg.repoPath(), cfg.YangDirPlatform), err)
+		return nil, fmt.Errorf("while getting repository content %q - %w", path.Join(cfg.repoPath(), dir), err)
 	}
 
 	result := make(map[string]github.RepositoryContent, len(directoryContent))
 	for i, content := range directoryContent {
 		if content.Path == nil {
-			return nil, fmt.Errorf("content %d from %q has nil Path element", i, path.Join(cfg.repoPath(), cfg.YangDirPlatform))
+			return nil, fmt.Errorf("content %d from %q has nil Path element", i, path.Join(cfg.repoPath(), dir))
 		}
 
 		result[*content.Path] = *content
 	}
 
 	if len(result) == 0 {
-		return nil, fmt.Errorf("no platform yang files found in github repo %q path %q using %q", cfg.repoPath(), cfg.YangDirPlatform, commonYangFileRegex)
+		return nil, fmt.Errorf("no platform yang files found in github repo %q path %q", cfg.repoPath(), dir)
 	}
 
 	return result, nil
 }
 
-// yangFilesRepositoryContent returns map[string]github.RepositoryContent keyed by path within the repository
+// yangFilesRepoContent returns map[string]github.RepositoryContent keyed by path within the repository
 // The result describes yang files available
-func yangFilesRepositoryContent(ctx context.Context, cfg jtafConfig, client *github.Client) (map[string]github.RepositoryContent, error) {
-	commonYangFiles, err := commonYangFilesRepositoryContent(ctx, cfg, client)
+func yangFilesRepoContent(ctx context.Context, cfg jtafConfig, client *github.Client) (map[string]github.RepositoryContent, error) {
+	commonYangFiles, err := repoContentByDir(ctx, cfg.RepoDirYangCommon(), cfg, client)
 	if err != nil {
 		return nil, fmt.Errorf("while getting common yang file URLs - %w", err)
 	}
 
-	platformYangFiles, err := platformYangFilesRepositoryContent(ctx, cfg, client)
+	familyYangFiles, err := repoContentByDir(ctx, cfg.RepoDirYangFamily(), cfg, client)
 	if err != nil {
 		return nil, fmt.Errorf("while getting platform yang file URLs - %w", err)
 	}
 
-	// Stick common files into the platform file map to unify the maps
+	// copy both maps into a single map
+	allYangFiles := make(map[string]github.RepositoryContent, len(commonYangFiles)+len(familyYangFiles))
+	for k, v := range familyYangFiles {
+		allYangFiles[k] = v
+	}
 	for k, v := range commonYangFiles {
-		if _, ok := platformYangFiles[k]; ok {
-			// this can never happen because the keys from each map use different directory paths
-			return nil, fmt.Errorf("file %q found in both common and platform yang file maps", k)
-		}
-
-		platformYangFiles[k] = v
+		allYangFiles[k] = v
 	}
 
-	// At ths point, platformYangFiles contains all yang files (common and platform) keyed by full path
-	// within the repository. We intend to cache these files in a single directory within the filesystem.
-	// Merging files from multiple paths into a single directory risks name collisions, but I think it's
-	// okay...
-
-	// ensure no collisions exist between platform and common file basenames
-	baseNameMap := make(map[string]struct{}, len(platformYangFiles))
-	for fullPath := range platformYangFiles {
-		baseNameMap[path.Base(fullPath)] = struct{}{}
-	}
-	if len(baseNameMap) != len(platformYangFiles) {
-		return nil, fmt.Errorf("cannot cache yang files into %q with current directory strategy "+
-			"due to a collision between platform and common file basenames", cfg.yangCacheDir())
-	}
-
-	return platformYangFiles, nil
+	return allYangFiles, nil
 }
 
 // isCached checks whether the file described by the github.RepositoryContent is
@@ -142,22 +96,40 @@ func isCached(fileName string, cfg jtafConfig, content github.RepositoryContent)
 // targetFileName returns the filesystem location where the github.RepositoryContent should be stored,
 // based on the jtafConfig.
 func targetFileName(cfg jtafConfig, content github.RepositoryContent) string {
-	return path.Join(cfg.yangCacheDir(), path.Base(*content.Path))
+	return path.Clean(path.Join(cfg.junosYangCacheDir(), *content.Path))
+}
+
+func validateRepositoryContent(content github.RepositoryContent) error {
+	if content.DownloadURL == nil {
+		return fmt.Errorf("requested content has nil DownloadURL element")
+	}
+
+	if content.HTMLURL == nil {
+		return fmt.Errorf("requested content has nil HTMLURL element")
+	}
+
+	if content.Path == nil {
+		return fmt.Errorf("requested content has nil Path element")
+	}
+
+	if content.SHA == nil {
+		return fmt.Errorf("requested content has nil SHA element")
+	}
+
+	_, err := url.Parse(*content.HTMLURL)
+	if err != nil {
+		return fmt.Errorf("while validating content HTMLURL element - %w", err)
+	}
+
+	return nil
 }
 
 // cacheRepositoryContent downloads a github.RepositoryContent into the cache dir
 // selected by the jtafConfig. The returned string is the path to the cached file.
 func cacheRepositoryContent(ctx context.Context, cfg jtafConfig, client *http.Client, content github.RepositoryContent) (string, error) {
-	if content.DownloadURL == nil {
-		return "", fmt.Errorf("requested content has nil DownloadURL element")
-	}
-
-	if content.Path == nil {
-		return "", fmt.Errorf("requested content has nil Path element")
-	}
-
-	if content.SHA == nil {
-		return "", fmt.Errorf("requested content has nil SHA element")
+	err := validateRepositoryContent(content)
+	if err != nil {
+		return "", fmt.Errorf("while validating repository content - %w", err)
 	}
 
 	targetName := targetFileName(cfg, content)
@@ -223,20 +195,33 @@ func cacheRepositoryContent(ctx context.Context, cfg jtafConfig, client *http.Cl
 	return targetName, nil
 }
 
-func populateYangCache(ctx context.Context, cfg jtafConfig, httpClient *http.Client) error {
-	githubClient := github.NewClient(httpClient)
+func githubClient(httpClient *http.Client) *github.Client {
+	ghc := github.NewClient(httpClient)
 
-	repoPathToRepositoryContent, err := yangFilesRepositoryContent(ctx, cfg, githubClient)
+	if token, ok := os.LookupEnv(envGithubToken); ok {
+		ghc = ghc.WithAuthToken(token)
+	}
+
+	return ghc
+}
+
+// populateYangCacheFromGithub populates directories with yang files appropriate for the supplied
+// configuration. The returned slice indicates yang file directories relevant to the caller.
+func populateYangCacheFromGithub(ctx context.Context, cfg jtafConfig, httpClient *http.Client) ([]string, error) {
+	repoPathToRepositoryContent, err := yangFilesRepoContent(ctx, cfg, githubClient(httpClient))
 	if err != nil {
-		return fmt.Errorf("while getting common yang file URLs - %w", err)
+		return nil, fmt.Errorf("while getting common yang file URLs - %w", err)
 	}
 
+	yangDirs := make(map[string]struct{})
 	for repoPath, repositoryContent := range repoPathToRepositoryContent {
-		_, err = cacheRepositoryContent(ctx, cfg, httpClient, repositoryContent)
+		filePath, err := cacheRepositoryContent(ctx, cfg, httpClient, repositoryContent)
 		if err != nil {
-			return fmt.Errorf("while caching yang file %q - %w", path.Join(cfg.yangCacheDir(), repoPath), err)
+			return nil, fmt.Errorf("while caching yang file %q - %w", path.Join(cfg.junosYangCacheDir(), repoPath), err)
 		}
+
+		yangDirs[path.Dir(filePath)] = struct{}{}
 	}
 
-	return nil
+	return keys(yangDirs), nil
 }

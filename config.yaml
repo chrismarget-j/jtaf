@@ -1,10 +1,8 @@
 ---
-github_owner_name: Juniper
-github_repo_name: yang
 git_ref: master
 cache_dir: /tmp/.jtaf_cache
-device_config_file: test_data/test.xml
-platform: vptx
+junos_config_xml: test_data/test.xml
+junos_family: junos
 junos_version: 23.1R1
 yang_patches:
   - original_git_sha: 0acaaa26d84570516d6983a4d9211969b743b916

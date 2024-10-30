@@ -83,12 +83,12 @@ func deviceConfigXpathsToFile(in, out string) error {
 
 	b, err := xml.MarshalIndent(xPaths, "", "  ")
 	if err != nil {
-		fmt.Errorf("while marshaling xpaths from device configuration - %w", err)
+		return fmt.Errorf("while marshaling xpaths from device configuration - %w", err)
 	}
 
 	err = os.WriteFile(xpathFile, b, 0o644)
 	if err != nil {
-		fmt.Errorf("while writing xpath data to %q - %w", xpathFile, err)
+		return fmt.Errorf("while writing xpath data to %q - %w", xpathFile, err)
 	}
 
 	return nil

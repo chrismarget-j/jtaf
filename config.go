@@ -8,12 +8,17 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"gopkg.in/yaml.v2"
 )
 
 const (
-	junosVersionRegexp = `^((\d\d)\.\d+)R\d+.*`
+	defaultGithubOwnerName = "Juniper"
+	defaultGithubRepoName  = "yang"
+	yangCommonDir          = "common"
+	yangConfDir            = "conf"
+	junosVersionRegexp     = `^((\d\d)\.\d+)R\d+.*`
 )
 
 var flagC = flag.String("c", "config.yaml", "YAML config file")
@@ -24,17 +29,21 @@ type patch struct {
 	Patch          string `yaml:"diff"`
 }
 
+type githubInfo struct {
+	Owner string
+	Name  string
+	Ref   string
+}
+
 type jtafConfig struct {
+	yamlRepoInfo     githubInfo
 	DeviceConfigFile string
-	Platform         junosPlatform
 	JunosVersion     string
-	GitRef           string
-	YangDirPlatform  string
+	JunosFamily      string
 	YangDirCommon    string
-	GithubOwnerName  string
-	GithubRepoName   string
 	BaseCacheDir     string
 	YangPatches      map[string]patch
+	repoYangDir      string
 }
 
 // mkYangCacheDir returns the yang cache dir and returns whether it needed to be created
@@ -61,15 +70,27 @@ func (o *jtafConfig) mkYangCacheDir() (string, bool) {
 // repoPath returns a string like "github.com/Juniper/yang" or "github.com/Juniper/yang@main"
 func (o *jtafConfig) repoPath() string {
 	var gitRef string
-	if o.GitRef != "" {
-		gitRef = "@" + o.GitRef
+	if o.yamlRepoInfo.Ref != "" {
+		gitRef = "@" + o.yamlRepoInfo.Ref
 	}
-	return path.Join("github.com", o.GithubOwnerName, o.GithubRepoName) + gitRef
+	return path.Join("github.com", o.yamlRepoInfo.Owner, o.yamlRepoInfo.Name) + gitRef
 }
 
-// yangCacheDir returns the path to the yang cache directory for configured git ref, junosPlatform and junos version
+// yangCacheDir returns the path to the top-level yang cache directory
 func (o *jtafConfig) yangCacheDir() string {
-	return path.Join(o.BaseCacheDir, "yang", o.GitRef, o.Platform.Value, o.JunosVersion)
+	return path.Clean(path.Join(o.BaseCacheDir, "yang"))
+}
+
+func (o *jtafConfig) junosYangCacheDir() string {
+	ref := o.yamlRepoInfo.Ref
+	if ref != "" && !strings.HasPrefix(ref, "@") {
+		ref = "@" + ref
+	}
+	return path.Clean(path.Join(o.yangCacheDir(), "github.com", o.yamlRepoInfo.Owner, o.yamlRepoInfo.Name, ref))
+}
+
+func (o *jtafConfig) otherYangCacheDir() string {
+	return path.Clean(path.Join(o.yangCacheDir(), "ietf"))
 }
 
 func getConfig() (jtafConfig, error) {
@@ -81,9 +102,9 @@ func getConfig() (jtafConfig, error) {
 	}
 
 	var yamlConfig struct {
-		DeviceConfigFile string  `yaml:"device_config_file"`
-		Platform         string  `yaml:"platform"`
-		JunosVersion     string  `yaml:"junos_version"`
+		DeviceConfigFile string  `yaml:"junos_config_xml"`
+		Family           string  `yaml:"junos_family"`
+		Version          string  `yaml:"junos_version"`
 		GitRef           string  `yaml:"git_ref"`
 		GithubOwnerName  string  `yaml:"github_owner_name"`
 		GithubRepoName   string  `yaml:"github_repo_name"`
@@ -96,24 +117,27 @@ func getConfig() (jtafConfig, error) {
 		return jtafConfig{}, fmt.Errorf("while parsing config file %q - %w", *flagC, err)
 	}
 
+	if yamlConfig.GithubOwnerName == "" {
+		yamlConfig.GithubOwnerName = defaultGithubOwnerName
+	}
+
+	if yamlConfig.GithubRepoName == "" {
+		yamlConfig.GithubRepoName = defaultGithubRepoName
+	}
+
 	deviceConfigFile, err := filepath.Abs(yamlConfig.DeviceConfigFile)
 	if err != nil {
 		return jtafConfig{}, fmt.Errorf("while expanding file path %q - %w", yamlConfig.DeviceConfigFile, err)
 	}
 
-	p := platforms.Parse(yamlConfig.Platform)
-	if p == nil {
-		return jtafConfig{}, fmt.Errorf("junosPlatform must be one of %s, got %q", platforms.Members(), yamlConfig.Platform)
+	family := osFamilies.Parse(yamlConfig.Family)
+	if family == nil {
+		return jtafConfig{}, fmt.Errorf("family must be one of %s, got %q", osFamilies.Members(), yamlConfig.Family)
 	}
 
-	s := regexp.MustCompile(junosVersionRegexp).FindStringSubmatch(yamlConfig.JunosVersion)
+	s := regexp.MustCompile(junosVersionRegexp).FindStringSubmatch(yamlConfig.Version)
 	if len(s) != 3 {
-		return jtafConfig{}, fmt.Errorf("failed to parse junos version %q - version should look like 23.1R1 or 23.4R1.10", yamlConfig.JunosVersion)
-	}
-
-	osFam, ok := platformToOsFamily[*p]
-	if !ok {
-		return jtafConfig{}, fmt.Errorf("unknown os for junosPlatform %q", p.Value)
+		return jtafConfig{}, fmt.Errorf("failed to parse junos version %q - version should look like 23.1R1 or 23.4R1.10", yamlConfig.Version)
 	}
 
 	yangPatches := make(map[string]patch, len(yamlConfig.YangPatches))
@@ -125,17 +149,26 @@ func getConfig() (jtafConfig, error) {
 	}
 
 	result := jtafConfig{
-		Platform:         *p,
-		JunosVersion:     yamlConfig.JunosVersion,
-		GitRef:           yamlConfig.GitRef,
-		YangDirPlatform:  path.Join(s[1], yamlConfig.JunosVersion, osFam.Value, "conf"),
-		YangDirCommon:    path.Join(s[1], yamlConfig.JunosVersion, "common"),
+		JunosVersion:     yamlConfig.Version,
+		JunosFamily:      family.Value,
+		repoYangDir:      path.Join(s[1], yamlConfig.Version),
 		BaseCacheDir:     yamlConfig.CacheDir,
 		DeviceConfigFile: deviceConfigFile,
-		GithubOwnerName:  yamlConfig.GithubOwnerName,
-		GithubRepoName:   yamlConfig.GithubRepoName,
 		YangPatches:      yangPatches,
+		yamlRepoInfo: githubInfo{
+			Owner: yamlConfig.GithubOwnerName,
+			Name:  yamlConfig.GithubRepoName,
+			Ref:   yamlConfig.GitRef,
+		},
 	}
 
 	return result, nil
+}
+
+func (o *jtafConfig) RepoDirYangCommon() string {
+	return path.Join(o.repoYangDir, yangCommonDir)
+}
+
+func (o *jtafConfig) RepoDirYangFamily() string {
+	return path.Join(o.repoYangDir, o.JunosFamily, yangConfDir)
 }

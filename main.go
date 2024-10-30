@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/openconfig/goyang/pkg/yang"
 	"log"
 	"net/http"
+	"time"
 )
 
 const xpathFile = "xpath_inputs.xml"
@@ -19,7 +21,7 @@ func main() {
 
 	httpClient := http.DefaultClient
 
-	err = populateYangCache(ctx, cfg, httpClient)
+	yangDirs, err := populateYangCache(ctx, cfg, httpClient)
 	if err != nil {
 		log.Fatal(fmt.Errorf("while populating yang cache - %w", err))
 	}
@@ -36,7 +38,7 @@ func main() {
 		log.Fatal(fmt.Errorf("while parsing device config file %q - %w", cfg.DeviceConfigFile, err))
 	}
 
-	cfgRoot, err := getYangEntryConfigRoot(cfg.yangCacheDir())
+	cfgRoot, err := getYangEntryConfigRoot(yangDirs)
 	if err != nil {
 		log.Fatal(fmt.Errorf("while getting %s from %q - %w", yangConfigRoot, cfg.yangCacheDir(), err))
 	}
@@ -46,8 +48,26 @@ func main() {
 		log.Fatal(fmt.Errorf("while checking config breadcrumbs against yang data - %w", err))
 	}
 
+	start := time.Now()
+	getTypeKinds(cfgRoot)
+	duration := time.Now().Sub(start)
+	fmt.Println(duration)
+	fmt.Println("kinds in use:\n", typeKinds)
+
 	//fmt.Println(cfgRoot.Name)
 	//for _, bct := range breadcrumbTrails {
 	//	fmt.Println(strings.Join(bct, pathSep))
 	//}
+}
+
+var typeKinds = make(map[yang.TypeKind]struct{})
+
+func getTypeKinds(ye *yang.Entry) {
+	if ye.Type != nil {
+		typeKinds[ye.Type.Kind] = struct{}{}
+	}
+
+	for _, ye := range ye.Dir {
+		getTypeKinds(ye)
+	}
 }
