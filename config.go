@@ -41,7 +41,6 @@ type jtafConfig struct {
 	DeviceConfigFile string
 	JunosVersion     string
 	JunosFamily      string
-	YangDirCommon    string
 	BaseCacheDir     string
 	YangPatches      map[string]patch
 	repoYangDir      string
