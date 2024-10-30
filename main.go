@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/openconfig/goyang/pkg/yang"
 	"log"
 	"net/http"
-	"time"
+
+	"github.com/openconfig/goyang/pkg/yang"
 )
 
 const xpathFile = "xpath_inputs.xml"
@@ -48,10 +48,7 @@ func main() {
 		log.Fatal(fmt.Errorf("while checking config breadcrumbs against yang data - %w", err))
 	}
 
-	start := time.Now()
 	getTypeKinds(cfgRoot)
-	duration := time.Now().Sub(start)
-	fmt.Println(duration)
 	fmt.Println("kinds in use:\n", typeKinds)
 
 	//fmt.Println(cfgRoot.Name)

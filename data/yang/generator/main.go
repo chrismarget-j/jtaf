@@ -159,7 +159,7 @@ func genTopFile(pToC map[string]string) error {
 			initPayload.WriteString("\n")
 		}
 		imports[path.Join(importBasePath, path.Dir(p))] = struct{}{}
-		initPayload.WriteString(fmt.Sprintf("    Files[\"%s\"] = %s\n", p, c))
+		initPayload.WriteString(fmt.Sprintf("\tFiles[\"%s\"] = %s\n", p, c))
 		i++
 	}
 

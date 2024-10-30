@@ -16,12 +16,13 @@ import (
 const (
 	defaultGithubOwnerName = "Juniper"
 	defaultGithubRepoName  = "yang"
+	defaultConfigFile      = "./config.yaml"
 	yangCommonDir          = "common"
 	yangConfDir            = "conf"
 	junosVersionRegexp     = `^((\d\d)\.\d+)R\d+.*`
 )
 
-var flagC = flag.String("c", "config.yaml", "YAML config file")
+var flagC = flag.String("c", defaultConfigFile, "YAML config file")
 
 type patch struct {
 	OriginalGitSha string `yaml:"original_git_sha"`

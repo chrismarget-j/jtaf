@@ -3,11 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/chrismarget-j/jtaf/data/yang"
 	"net/http"
 	"os"
 	"path"
 	"sort"
+
+	"github.com/chrismarget-j/jtaf/data/yang"
 )
 
 // populateYangCacheFromBakedIn drops the baked-in yang files
@@ -17,7 +18,7 @@ import (
 func populateYangCacheFromBakedIn(cfg jtafConfig) ([]string, error) {
 	resultMap := make(map[string]struct{})
 	for k, v := range yang.Files {
-		fn := path.Join(cfg.BaseCacheDir, k)
+		fn := path.Join(cfg.yangCacheDir(), k)
 		dn := path.Dir(fn)
 
 		err := os.MkdirAll(dn, 0o755)
@@ -29,7 +30,6 @@ func populateYangCacheFromBakedIn(cfg jtafConfig) ([]string, error) {
 		if err != nil {
 			return nil, fmt.Errorf("while creating temporary file - %w", err)
 		}
-		//tfn := path.Join(dn, tf.Name())
 		tfn := tf.Name()
 
 		_, err = tf.Write([]byte(v))

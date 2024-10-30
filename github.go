@@ -3,12 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/google/go-github/v66/github"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
+
+	"github.com/google/go-github/v66/github"
 )
 
 const envGithubToken = "GITHUB_PUB_API_TOKEN"
