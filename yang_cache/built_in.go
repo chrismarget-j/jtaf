@@ -1,22 +1,20 @@
-package main
+package yangcache
 
 import (
-	"context"
 	"fmt"
-	"net/http"
 	"os"
 	"path"
-	"sort"
 
 	jtafCfg "github.com/chrismarget-j/jtaf/config"
 	"github.com/chrismarget-j/jtaf/data/yang"
+	"github.com/chrismarget-j/jtaf/helpers"
 )
 
-// populateYangCacheFromBakedIn drops the baked-in yang files
+// populateBakedIn drops the baked-in yang files
 // (data/yang/publisher/*.yang) into the yang cache dir. The
 // returned strings represent yang directories the caller might
 // use as a module source.
-func populateYangCacheFromBakedIn(cfg jtafCfg.Cfg) ([]string, error) {
+func populateBakedIn(cfg jtafCfg.Cfg) ([]string, error) {
 	resultMap := make(map[string]struct{})
 	for k, v := range yang.Files {
 		fn := path.Join(cfg.YangCacheDir(), k)
@@ -51,24 +49,5 @@ func populateYangCacheFromBakedIn(cfg jtafCfg.Cfg) ([]string, error) {
 		resultMap[dn] = struct{}{}
 	}
 
-	return keys(resultMap), nil
-}
-
-// populateYangCache populates directories with yang files appropriate for the supplied configuration.
-// The returned slice indicates yang file directories relevant to the caller.
-func populateYangCache(ctx context.Context, cfg jtafCfg.Cfg, httpClient *http.Client) ([]string, error) {
-	githubDirs, err := populateYangCacheFromGithub(ctx, cfg, httpClient)
-	if err != nil {
-		return nil, fmt.Errorf("while populating yang cache from github - %w", err)
-	}
-
-	bakedInDirs, err := populateYangCacheFromBakedIn(cfg)
-	if err != nil {
-		return nil, fmt.Errorf("while populating yang cache with baked-in files - %w", err)
-	}
-
-	result := append(githubDirs, bakedInDirs...)
-	sort.Strings(result)
-
-	return result, nil
+	return helpers.Keys(resultMap), nil
 }

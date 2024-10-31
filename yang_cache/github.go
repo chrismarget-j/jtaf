@@ -1,22 +1,21 @@
-package main
+package yangcache
 
 import (
 	"context"
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"path"
 
-	jtafCfg "github.com/chrismarget-j/jtaf/config"
+	jtafcfg "github.com/chrismarget-j/jtaf/config"
+	ourgh "github.com/chrismarget-j/jtaf/github"
+	"github.com/chrismarget-j/jtaf/helpers"
 	"github.com/google/go-github/v66/github"
 )
 
-const envGithubToken = "GITHUB_PUB_API_TOKEN"
-
 // repoContentByDir returns map[string]github.RepositoryContent keyed by path within the repository.
-func repoContentByDir(ctx context.Context, dir string, cfg jtafCfg.Cfg, client *github.Client) (map[string]github.RepositoryContent, error) {
+func repoContentByDir(ctx context.Context, dir string, cfg jtafcfg.Cfg, client *github.Client) (map[string]github.RepositoryContent, error) {
 	_, directoryContent, _, err := client.Repositories.GetContents(ctx, cfg.YamlRepoInfo.Owner, cfg.YamlRepoInfo.Name, dir, &github.RepositoryContentGetOptions{Ref: cfg.YamlRepoInfo.Ref})
 	if err != nil {
 		return nil, fmt.Errorf("while getting repository content %q - %w", path.Join(cfg.RepoPath(), dir), err)
@@ -40,7 +39,7 @@ func repoContentByDir(ctx context.Context, dir string, cfg jtafCfg.Cfg, client *
 
 // yangFilesRepoContent returns map[string]github.RepositoryContent keyed by path within the repository
 // The result describes yang files available
-func yangFilesRepoContent(ctx context.Context, cfg jtafCfg.Cfg, client *github.Client) (map[string]github.RepositoryContent, error) {
+func yangFilesRepoContent(ctx context.Context, cfg jtafcfg.Cfg, client *github.Client) (map[string]github.RepositoryContent, error) {
 	commonYangFiles, err := repoContentByDir(ctx, cfg.RepoDirYangCommon(), cfg, client)
 	if err != nil {
 		return nil, fmt.Errorf("while getting common yang file URLs - %w", err)
@@ -63,78 +62,15 @@ func yangFilesRepoContent(ctx context.Context, cfg jtafCfg.Cfg, client *github.C
 	return allYangFiles, nil
 }
 
-// isCached checks whether the file described by the github.RepositoryContent is
-// cached at the supplied filename.
-func isCached(fileName string, cfg jtafCfg.Cfg, content github.RepositoryContent) (bool, error) {
-	if content.SHA == nil {
-		return false, fmt.Errorf("cannot validate cache entry because content shasum is nil")
-	}
-
-	fi, err := os.Stat(fileName)
-	if err != nil && !os.IsNotExist(err) {
-		return false, fmt.Errorf("while stat-ing file %q - %w", fileName, err)
-	}
-
-	if os.IsNotExist(err) {
-		return false, nil // cache miss - this is fine
-	}
-
-	if fi.IsDir() {
-		return false, fmt.Errorf("%q is a directory, expected file", fileName)
-	}
-
-	if yp, ok := cfg.YangPatches[*content.SHA]; ok {
-		err = checkSha256(fileName, yp.RequiredSha256) // check the expected post-patch hash
-	} else {
-		err = checkGitSha(fileName, fi.Size(), *content.SHA) // check the expected git hash
-	}
-	if err != nil {
-		return false, fmt.Errorf("while checking cached file %q - %w", fileName, err)
-	}
-
-	return true, nil
-}
-
-// targetFileName returns the filesystem location where the github.RepositoryContent should be stored,
-// based on the jtafConfig.
-func targetFileName(cfg jtafCfg.Cfg, content github.RepositoryContent) string {
-	return path.Clean(path.Join(cfg.JunosYangCacheDir(), *content.Path))
-}
-
-func validateRepositoryContent(content github.RepositoryContent) error {
-	if content.DownloadURL == nil {
-		return fmt.Errorf("requested content has nil DownloadURL element")
-	}
-
-	if content.HTMLURL == nil {
-		return fmt.Errorf("requested content has nil HTMLURL element")
-	}
-
-	if content.Path == nil {
-		return fmt.Errorf("requested content has nil Path element")
-	}
-
-	if content.SHA == nil {
-		return fmt.Errorf("requested content has nil SHA element")
-	}
-
-	_, err := url.Parse(*content.HTMLURL)
-	if err != nil {
-		return fmt.Errorf("while validating content HTMLURL element - %w", err)
-	}
-
-	return nil
-}
-
 // cacheRepositoryContent downloads a github.RepositoryContent into the cache dir
 // selected by the jtafConfig. The returned string is the path to the cached file.
-func cacheRepositoryContent(ctx context.Context, cfg jtafCfg.Cfg, client *http.Client, content github.RepositoryContent) (string, error) {
-	err := validateRepositoryContent(content)
+func cacheRepositoryContent(ctx context.Context, cfg jtafcfg.Cfg, client *http.Client, content github.RepositoryContent) (string, error) {
+	err := ourgh.ValidateRepositoryContent(content)
 	if err != nil {
 		return "", fmt.Errorf("while validating repository content - %w", err)
 	}
 
-	targetName := targetFileName(cfg, content)
+	targetName := cfg.TargetFileName(content)
 
 	ok, err := isCached(targetName, cfg, content)
 	if err != nil {
@@ -165,7 +101,7 @@ func cacheRepositoryContent(ctx context.Context, cfg jtafCfg.Cfg, client *http.C
 	if err != nil {
 		return "", fmt.Errorf("while making temp download file in %q - %w", cfg.BaseCacheDir, err)
 	}
-	// do not defer close - we need explicit closeure to apply patches
+	// do not defer close - we need explicit closure to apply patches
 
 	_, err = io.Copy(tmpFile, resp.Body)
 	if err != nil {
@@ -177,16 +113,9 @@ func cacheRepositoryContent(ctx context.Context, cfg jtafCfg.Cfg, client *http.C
 		return "", fmt.Errorf("while closing tempfile %q - %w", path.Join(cfg.BaseCacheDir, tmpFile.Name()), err)
 	}
 
-	if yp, ok := cfg.YangPatches[*content.SHA]; ok {
-		err = applyPatch(tmpFile.Name(), yp)
-		if err != nil {
-			return "", fmt.Errorf("while applying patch to %q - %w", tmpFile.Name(), err)
-		}
-
-		err := checkSha256(tmpFile.Name(), yp.RequiredSha256)
-		if err != nil {
-			return "", fmt.Errorf("failed validating expected checksum (%s) of %q - %w", yp.RequiredSha256, tmpFile.Name(), err)
-		}
+	err = cfg.Patch(tmpFile.Name(), content)
+	if err != nil {
+		return "", fmt.Errorf("while patching yang file - %w", err)
 	}
 
 	err = os.Rename(tmpFile.Name(), targetName)
@@ -197,20 +126,10 @@ func cacheRepositoryContent(ctx context.Context, cfg jtafCfg.Cfg, client *http.C
 	return targetName, nil
 }
 
-func githubClient(httpClient *http.Client) *github.Client {
-	ghc := github.NewClient(httpClient)
-
-	if token, ok := os.LookupEnv(envGithubToken); ok {
-		ghc = ghc.WithAuthToken(token)
-	}
-
-	return ghc
-}
-
 // populateYangCacheFromGithub populates directories with yang files appropriate for the supplied
 // configuration. The returned slice indicates yang file directories relevant to the caller.
-func populateYangCacheFromGithub(ctx context.Context, cfg jtafCfg.Cfg, httpClient *http.Client) ([]string, error) {
-	repoPathToRepositoryContent, err := yangFilesRepoContent(ctx, cfg, githubClient(httpClient))
+func populateYangCacheFromGithub(ctx context.Context, cfg jtafcfg.Cfg, httpClient *http.Client) ([]string, error) {
+	repoPathToRepositoryContent, err := yangFilesRepoContent(ctx, cfg, ourgh.GithubClient(httpClient))
 	if err != nil {
 		return nil, fmt.Errorf("while getting common yang file URLs - %w", err)
 	}
@@ -225,5 +144,5 @@ func populateYangCacheFromGithub(ctx context.Context, cfg jtafCfg.Cfg, httpClien
 		yangDirs[path.Dir(filePath)] = struct{}{}
 	}
 
-	return keys(yangDirs), nil
+	return helpers.Keys(yangDirs), nil
 }

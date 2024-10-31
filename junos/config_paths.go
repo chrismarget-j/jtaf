@@ -1,4 +1,4 @@
-package main
+package junos
 
 import (
 	"encoding/xml"
@@ -9,9 +9,9 @@ import (
 	"strings"
 )
 
-const pathSep = "/"
+const PathSep = "/"
 
-func getConfigBreadcrumbTrails(cfgFile string) ([][]string, error) {
+func GetConfigBreadcrumbTrails(cfgFile string) ([][]string, error) {
 	f, err := os.Open(cfgFile)
 	if err != nil {
 		return nil, fmt.Errorf("while opening device config file %q - %w", cfgFile, err)
@@ -38,7 +38,7 @@ func getConfigBreadcrumbTrails(cfgFile string) ([][]string, error) {
 			// keep track of where we are by dropping a breadcrumb
 			breadcrumbs = append(breadcrumbs, tok.Name.Local)
 			// remember this spot
-			breadcrumbTrails[strings.Join(breadcrumbs, pathSep)] = struct{}{}
+			breadcrumbTrails[strings.Join(breadcrumbs, PathSep)] = struct{}{}
 		case xml.EndElement:
 			// keep track of where we are by cleaning up a breadcrumb
 			breadcrumbs = breadcrumbs[:len(breadcrumbs)-1]
@@ -47,17 +47,17 @@ func getConfigBreadcrumbTrails(cfgFile string) ([][]string, error) {
 
 	// trim the save points so that only leaf nodes remain
 	for k := range breadcrumbTrails {
-		pathElems := strings.Split(k, pathSep)
+		pathElems := strings.Split(k, PathSep)
 		for len(pathElems) > 0 {
 			pathElems = pathElems[:len(pathElems)-1]
-			delete(breadcrumbTrails, strings.Join(pathElems, pathSep))
+			delete(breadcrumbTrails, strings.Join(pathElems, PathSep))
 		}
 	}
 
 	result := make([][]string, len(breadcrumbTrails))
 	var i int
 	for breadcrumbTrail := range breadcrumbTrails {
-		result[i] = strings.Split(breadcrumbTrail, pathSep)
+		result[i] = strings.Split(breadcrumbTrail, PathSep)
 		i++
 	}
 

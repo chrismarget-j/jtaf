@@ -3,6 +3,7 @@ package jtafCfg
 import (
 	"flag"
 	"fmt"
+	"github.com/google/go-github/v66/github"
 	"log"
 	"os"
 	"path"
@@ -31,13 +32,27 @@ type githubInfo struct {
 }
 
 type Cfg struct {
-	YamlRepoInfo     githubInfo
-	DeviceConfigFile string
-	JunosVersion     string
-	JunosFamily      string
-	BaseCacheDir     string
-	YangPatches      map[string]Patch
-	repoYangDir      string
+	YamlRepoInfo    githubInfo
+	JunosConfigFile string
+	JunosVersion    string
+	JunosFamily     string
+	BaseCacheDir    string
+	YangPatches     map[string]Patch
+	repoYangDir     string
+}
+
+func (o Cfg) Patch(filename string, grc github.RepositoryContent) error {
+	p, ok := o.YangPatches[*grc.SHA]
+	if !ok {
+		return nil // no patch; no problem
+	}
+
+	return p.applyToFile(filename)
+}
+
+// TargetFileName returns the filesystem location where the github.RepositoryContent should be stored.
+func (o Cfg) TargetFileName(grc github.RepositoryContent) string {
+	return path.Clean(path.Join(o.JunosYangCacheDir(), *grc.Path))
 }
 
 // mkYangCacheDir returns the yang cache dir and returns whether it needed to be created
@@ -143,12 +158,12 @@ func Get() (Cfg, error) {
 	}
 
 	result := Cfg{
-		JunosVersion:     yamlConfig.Version,
-		JunosFamily:      family.Value,
-		repoYangDir:      path.Join(s[1], yamlConfig.Version),
-		BaseCacheDir:     yamlConfig.CacheDir,
-		DeviceConfigFile: deviceConfigFile,
-		YangPatches:      yangPatches,
+		JunosVersion:    yamlConfig.Version,
+		JunosFamily:     family.Value,
+		repoYangDir:     path.Join(s[1], yamlConfig.Version),
+		BaseCacheDir:    yamlConfig.CacheDir,
+		JunosConfigFile: deviceConfigFile,
+		YangPatches:     yangPatches,
 		YamlRepoInfo: githubInfo{
 			Owner: yamlConfig.GithubOwnerName,
 			Name:  yamlConfig.GithubRepoName,
