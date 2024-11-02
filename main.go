@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	ouryang "github.com/chrismarget-j/jtaf/yang"
 	"log"
@@ -31,13 +32,6 @@ func main() {
 		log.Fatal(fmt.Errorf("while populating yang cache - %w", err))
 	}
 
-	//err = deviceConfigXpathsToFile(cfg.JunosConfigFile, xpathFile)
-	//if err != nil {
-	//	log.Fatal(fmt.Errorf("while parsing device configs and writing to xpath file - %w", err))
-	//}
-
-	// deviceConfigXpaths()
-
 	breadcrumbTrails, err := junos.GetConfigBreadcrumbTrails(cfg.JunosConfigFile)
 	if err != nil {
 		log.Fatal(fmt.Errorf("while parsing device config file %q - %w", cfg.JunosConfigFile, err))
@@ -48,7 +42,16 @@ func main() {
 		log.Fatal(fmt.Errorf("while getting %s from %q - %w", configRoot, cfg.YangCacheDir(), err))
 	}
 
-	err = yangWalk(cfgRoot, breadcrumbTrails)
+	ouryang.TrimToConfig(cfgRoot, breadcrumbTrails)
+
+	bytes, err := json.MarshalIndent(cfgRoot, "", "")
+	if err != nil {
+		log.Fatal(fmt.Errorf("while marshaling trimmed config root - %w", err))
+	}
+
+	fmt.Println(string(bytes))
+
+	err = exploreYangBreadcrumbs(cfgRoot, breadcrumbTrails)
 	if err != nil {
 		log.Fatal(fmt.Errorf("while checking config breadcrumbs against yang data - %w", err))
 	}
@@ -56,10 +59,10 @@ func main() {
 	getTypeKinds(cfgRoot)
 	fmt.Println("kinds in use:\n", typeKinds)
 
-	//fmt.Println(cfgRoot.Name)
-	//for _, bct := range breadcrumbTrails {
-	//	fmt.Println(strings.Join(bct, pathSep))
-	//}
+	fmt.Println(cfgRoot.Name)
+	for _, bct := range breadcrumbTrails {
+		fmt.Println(strings.Join(bct, junos.PathSep))
+	}
 }
 
 var typeKinds = make(map[yang.TypeKind]struct{})
@@ -74,7 +77,15 @@ func getTypeKinds(ye *yang.Entry) {
 	}
 }
 
-func yangWalk(entry *yang.Entry, paths [][]string) error {
+//var unions = make(map[string][]string)
+//
+//func getUnions(path string, ye *yang.Entry) {
+//	if ye.Type != nil && ye.Type.Kind == yang.Yunion {
+//		s := unions[path]
+//	}
+//}
+
+func exploreYangBreadcrumbs(entry *yang.Entry, paths [][]string) error {
 	for p, path := range paths {
 		var ne *yang.Entry
 		for s, step := range path {
