@@ -3,24 +3,27 @@ package jtafCfg
 import (
 	"flag"
 	"fmt"
-	"github.com/google/go-github/v66/github"
 	"log"
 	"os"
 	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
+	"github.com/google/go-github/v66/github"
 	"gopkg.in/yaml.v2"
 )
 
 const (
+	defaultCacheInterval   = 86400
 	defaultGithubOwnerName = "Juniper"
 	defaultGithubRepoName  = "yang"
 	defaultConfigFile      = "./config.yaml"
 	yangCommonDir          = "common"
 	yangConfDir            = "conf"
 	junosVersionRegexp     = `^((\d\d)\.\d+)R\d+.*`
+	cacheFreshnessMarker   = ".cache_updated"
 )
 
 var flagC = flag.String("c", defaultConfigFile, "YAML config file")
@@ -32,16 +35,17 @@ type githubInfo struct {
 }
 
 type Cfg struct {
-	YamlRepoInfo    githubInfo
-	JunosConfigFile string
-	JunosVersion    string
-	JunosFamily     string
-	BaseCacheDir    string
-	YangPatches     map[string]Patch
-	repoYangDir     string
+	YamlRepoInfo         githubInfo
+	JunosConfigFile      string
+	JunosVersion         string
+	JunosFamily          string
+	BaseCacheDir         string
+	YangPatches          map[string]Patch
+	repoYangDir          string
+	cacheRefreshInterval time.Duration
 }
 
-func (o Cfg) Patch(filename string, grc github.RepositoryContent) error {
+func (o *Cfg) Patch(filename string, grc github.RepositoryContent) error {
 	p, ok := o.YangPatches[*grc.SHA]
 	if !ok {
 		return nil // no patch; no problem
@@ -51,7 +55,7 @@ func (o Cfg) Patch(filename string, grc github.RepositoryContent) error {
 }
 
 // TargetFileName returns the filesystem location where the github.RepositoryContent should be stored.
-func (o Cfg) TargetFileName(grc github.RepositoryContent) string {
+func (o *Cfg) TargetFileName(grc github.RepositoryContent) string {
 	return path.Clean(path.Join(o.JunosYangCacheDir(), *grc.Path))
 }
 
@@ -111,19 +115,25 @@ func Get() (Cfg, error) {
 	}
 
 	var yamlConfig struct {
-		DeviceConfigFile string  `yaml:"junos_config_xml"`
-		Family           string  `yaml:"junos_family"`
-		Version          string  `yaml:"junos_version"`
-		GitRef           string  `yaml:"git_ref"`
-		GithubOwnerName  string  `yaml:"github_owner_name"`
-		GithubRepoName   string  `yaml:"github_repo_name"`
-		CacheDir         string  `yaml:"cache_dir"`
-		YangPatches      []Patch `yaml:"yang_patches"`
+		DeviceConfigFile     string  `yaml:"junos_config_xml"`
+		Family               string  `yaml:"junos_family"`
+		Version              string  `yaml:"junos_version"`
+		GitRef               string  `yaml:"git_ref"`
+		GithubOwnerName      string  `yaml:"github_owner_name"`
+		GithubRepoName       string  `yaml:"github_repo_name"`
+		CacheDir             string  `yaml:"cache_dir"`
+		YangPatches          []Patch `yaml:"yang_patches"`
+		CacheRefreshInterval *int    `yaml:"cache_refresh_interval"`
 	}
 
 	err = yaml.Unmarshal(cfgBytes, &yamlConfig)
 	if err != nil {
 		return Cfg{}, fmt.Errorf("while parsing config file %q - %w", *flagC, err)
+	}
+
+	if yamlConfig.CacheRefreshInterval == nil {
+		cri := defaultCacheInterval
+		yamlConfig.CacheRefreshInterval = &cri
 	}
 
 	if yamlConfig.GithubOwnerName == "" {
@@ -158,12 +168,13 @@ func Get() (Cfg, error) {
 	}
 
 	result := Cfg{
-		JunosVersion:    yamlConfig.Version,
-		JunosFamily:     family.Value,
-		repoYangDir:     path.Join(s[1], yamlConfig.Version),
-		BaseCacheDir:    yamlConfig.CacheDir,
-		JunosConfigFile: deviceConfigFile,
-		YangPatches:     yangPatches,
+		JunosVersion:         yamlConfig.Version,
+		JunosFamily:          family.Value,
+		repoYangDir:          path.Join(s[1], yamlConfig.Version),
+		BaseCacheDir:         yamlConfig.CacheDir,
+		JunosConfigFile:      deviceConfigFile,
+		YangPatches:          yangPatches,
+		cacheRefreshInterval: time.Duration(*yamlConfig.CacheRefreshInterval) * time.Second,
 		YamlRepoInfo: githubInfo{
 			Owner: yamlConfig.GithubOwnerName,
 			Name:  yamlConfig.GithubRepoName,
@@ -180,4 +191,39 @@ func (o *Cfg) RepoDirYangCommon() string {
 
 func (o *Cfg) RepoDirYangFamily() string {
 	return path.Join(o.repoYangDir, o.JunosFamily, yangConfDir)
+}
+
+func (o *Cfg) cacheTouchFile() string {
+	return path.Join(o.YangCacheDir(), cacheFreshnessMarker)
+}
+
+func (o *Cfg) UpdateCacheFreshnessMarker() {
+	fn := o.cacheTouchFile()
+
+	_, err := os.Stat(fn)
+	if os.IsNotExist(err) {
+		file, err := os.Create(fn)
+		if err != nil {
+			return
+		}
+
+		file.Close()
+		return
+	}
+
+	now := time.Now()
+	_ = os.Chtimes(fn, now, now)
+}
+
+func (o *Cfg) CacheIsFresh() bool {
+	fi, err := os.Stat(o.cacheTouchFile())
+	if err != nil {
+		return false
+	}
+
+	if time.Now().Sub(fi.ModTime()) > o.cacheRefreshInterval {
+		return false
+	}
+
+	return true
 }

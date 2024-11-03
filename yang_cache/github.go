@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path"
+	"strings"
 
 	jtafcfg "github.com/chrismarget-j/jtaf/config"
 	ourgh "github.com/chrismarget-j/jtaf/github"
@@ -77,8 +79,11 @@ func cacheRepositoryContent(ctx context.Context, cfg jtafcfg.Cfg, client *http.C
 		return "", fmt.Errorf("while checking cache for %q - %w", path.Join(cfg.RepoPath(), *content.Path), err)
 	}
 	if ok {
+		log.Printf("...%s - cache OK", *content.DownloadURL)
 		return targetName, nil
 	}
+
+	log.Printf("Downloading %s", *content.DownloadURL)
 
 	err = os.MkdirAll(path.Dir(targetName), 0o755)
 	if err != nil {
@@ -129,7 +134,16 @@ func cacheRepositoryContent(ctx context.Context, cfg jtafcfg.Cfg, client *http.C
 // populateYangCacheFromGithub populates directories with yang files appropriate for the supplied
 // configuration. The returned slice indicates yang file directories relevant to the caller.
 func populateYangCacheFromGithub(ctx context.Context, cfg jtafcfg.Cfg, httpClient *http.Client) ([]string, error) {
-	repoPathToRepositoryContent, err := yangFilesRepoContent(ctx, cfg, ourgh.GithubClient(httpClient))
+	client := ourgh.GithubClient(httpClient)
+
+	urlPath := strings.TrimSuffix(path.Join(cfg.YamlRepoInfo.Owner, cfg.YamlRepoInfo.Name, cfg.YamlRepoInfo.Ref), "/")
+	if client.BaseURL != nil {
+		urlPath = path.Join(client.BaseURL.String() + urlPath)
+	}
+
+	log.Printf("Populating cache from %s...\n", urlPath)
+
+	repoPathToRepositoryContent, err := yangFilesRepoContent(ctx, cfg, client)
 	if err != nil {
 		return nil, fmt.Errorf("while getting common yang file URLs - %w", err)
 	}

@@ -2,9 +2,10 @@ package jtafCfg
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/chrismarget-j/jtaf/helpers"
 	rscpatch "github.com/rsc/tmp/patch"
-	"os"
 )
 
 type Patch struct {

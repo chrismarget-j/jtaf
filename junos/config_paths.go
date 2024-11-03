@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"strings"
 )
@@ -12,6 +13,7 @@ import (
 const PathSep = "/"
 
 func GetConfigBreadcrumbTrails(cfgFile string) ([][]string, error) {
+	log.Printf("Parsing Junos configuration file %q", cfgFile)
 	f, err := os.Open(cfgFile)
 	if err != nil {
 		return nil, fmt.Errorf("while opening device config file %q - %w", cfgFile, err)
@@ -61,5 +63,6 @@ func GetConfigBreadcrumbTrails(cfgFile string) ([][]string, error) {
 		i++
 	}
 
+	log.Printf("Junos configuration contains %d unique configuration paths.", len(result))
 	return result, nil
 }

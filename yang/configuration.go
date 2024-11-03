@@ -3,8 +3,9 @@ package yang
 import (
 	"errors"
 	"fmt"
-	"github.com/chrismarget-j/jtaf/helpers"
+	"log"
 
+	"github.com/chrismarget-j/jtaf/helpers"
 	"github.com/openconfig/goyang/pkg/yang"
 	"github.com/openconfig/goyang/pkg/yangentry"
 )
@@ -30,6 +31,8 @@ func GetYangEntryByName(desired string, dirNames []string) (*yang.Entry, error) 
 		}
 		yangFiles = append(yangFiles, lfws...)
 	}
+
+	log.Printf("Parsing %d YANG files in %d directories...", len(yangFiles), len(dirNames))
 
 	entries, errs := yangentry.Parse(yangFiles, yangIncludePaths)
 	err := errors.Join(errs...)

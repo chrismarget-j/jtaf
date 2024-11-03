@@ -1,6 +1,7 @@
 package yangcache
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"os"
 	"path"
@@ -25,25 +26,44 @@ func populateBakedIn(cfg jtafCfg.Cfg) ([]string, error) {
 			return nil, fmt.Errorf("while mkdir-ing %q - %w", dn, err)
 		}
 
-		tf, err := os.CreateTemp(dn, "."+path.Base(fn))
-		if err != nil {
-			return nil, fmt.Errorf("while creating temporary file - %w", err)
-		}
-		tfn := tf.Name()
-
-		_, err = tf.Write([]byte(v))
-		if err != nil {
-			return nil, fmt.Errorf("while writing to temporary file %q - %w", tfn, err)
+		_, err = os.Stat(fn)
+		if err != nil && !os.IsNotExist(err) {
+			return nil, fmt.Errorf("while stat-ing %q - %w", fn, err)
 		}
 
-		err = tf.Close()
-		if err != nil {
-			return nil, fmt.Errorf("while closing temporary file %q - %w", tfn, err)
+		if err == nil {
+			// file exists. do checksum and end the loop iteration.
+			h := sha256.New()
+			_, err = h.Write([]byte(v))
+			if err != nil {
+				return nil, fmt.Errorf("while writing %q data to sha256 hasher - %w", fn, err)
+			}
+
+			err = helpers.CheckSha256(fn, fmt.Sprintf("%x", h.Sum(nil)))
+			if err != nil {
+				return nil, fmt.Errorf("cached file %q failed checksum; expected %q", fn, fmt.Sprintf("%x", h.Sum(nil)))
+			}
+
+			resultMap[dn] = struct{}{}
+
+			continue // checksum is okay - nothing more to do with this one
 		}
 
-		err = os.Rename(tfn, fn)
+		// the file does not exist. must be created
+
+		f, err := helpers.NewTmpFileWithRenameOnClose(dn, "."+path.Base(fn), fn)
 		if err != nil {
-			return nil, fmt.Errorf("while renaming temporary file %q to %q - %w", tfn, fn, err)
+			return nil, fmt.Errorf("while creating temp file in %q - %w", dn, err)
+		}
+
+		_, err = f.Write([]byte(v))
+		if err != nil {
+			return nil, fmt.Errorf("while writing to temporary file - %w", err)
+		}
+
+		err = f.Close()
+		if err != nil {
+			return nil, fmt.Errorf("while closing temporary file - %w", err)
 		}
 
 		resultMap[dn] = struct{}{}

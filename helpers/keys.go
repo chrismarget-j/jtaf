@@ -1,8 +1,9 @@
 package helpers
 
 import (
-	"golang.org/x/exp/constraints"
 	"sort"
+
+	"golang.org/x/exp/constraints"
 )
 
 // Keys returns a slice of map keys

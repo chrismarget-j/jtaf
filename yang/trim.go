@@ -1,6 +1,8 @@
 package yang
 
-import "github.com/openconfig/goyang/pkg/yang"
+import (
+	"github.com/openconfig/goyang/pkg/yang"
+)
 
 // TrimToConfig trims the *yang.Entry tree down to only those elements required by
 // configPaths. Each element of configPaths is a slice of config XML path elements:
