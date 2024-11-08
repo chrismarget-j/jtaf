@@ -49,9 +49,9 @@ func main() {
 
 	ouryang.TrimUnions(cfgRoot)
 
+	log.Printf("Trimming YANG entries down to the minimal set required for %d configuration paths...\n", len(breadcrumbTrails))
+	ouryang.TrimToConfig(cfgRoot, breadcrumbTrails)
 	return
-	// log.Printf("Trimming YANG entries down to the minimal set required for %d configuration paths...\n", len(breadcrumbTrails))
-	// ouryang.TrimToConfig(cfgRoot, breadcrumbTrails)
 
 	getUnions(cfgRoot, nil)
 	ue := unionEntries

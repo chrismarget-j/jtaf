@@ -49,7 +49,7 @@ func populateBakedIn(cfg jtafCfg.Cfg) ([]string, error) {
 			continue // checksum is okay - nothing more to do with this one
 		}
 
-		// the file does not exist. must be created
+		// the file does not exist. must be created.
 
 		f, err := helpers.NewTmpFileWithRenameOnClose(dn, "."+path.Base(fn), fn)
 		if err != nil {

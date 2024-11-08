@@ -23,7 +23,7 @@ const (
 	yangSuffix = ".yang"
 
 	topFileName        = "files" + goSuffix
-	goYangFileTemplate = "package %s\n\n%s\n\nconst %s=`%s`"
+	goYangFileTemplate = "package %s\n\n%s\n\nconst %s = `%s`\n"
 	goTopFileTemplate  = "package yang\n\n%s%s\n\nfunc init() {%s}\n"
 )
 
