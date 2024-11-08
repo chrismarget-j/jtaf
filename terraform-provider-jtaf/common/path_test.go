@@ -1,6 +1,8 @@
 package common_test
 
 import (
+	"net/url"
+	"strconv"
 	"testing"
 
 	"github.com/chrismarget-j/jtaf/terraform-provider-jtaf/common"
@@ -21,14 +23,14 @@ func TestPathElementStrings(t *testing.T) {
 			expectedNoAttrString: "<foo>",
 		},
 		"b": {
-			source:               "<foo%2Fbar>",
+			source:               "<foo/bar>",
 			expectedObj:          common.PathElement{Name: "foo/bar", Attributes: nil},
-			expectedNoAttrString: "<foo%2Fbar>",
+			expectedNoAttrString: "<foo/bar>",
 		},
 		"c": {
-			source:               "<bar%2Fbaz attr%2F2=1%2F2 attr1=A1>",
+			source:               "<bar/baz attr/2=1/2 attr1=A1>",
 			expectedObj:          common.PathElement{Name: "bar/baz", Attributes: map[string]string{"attr/2": "1/2", "attr1": "A1"}},
-			expectedNoAttrString: "<bar%2Fbaz>",
+			expectedNoAttrString: "<bar/baz>",
 		},
 		"d": {
 			source:               "<f%3Eoo>",
@@ -71,16 +73,16 @@ func TestPathStrings(t *testing.T) {
 			expectedNoAttrs: "<foo><bar>",
 		},
 		"b": {
-			source: "<foo><b%2Fr><baz>",
+			source: "<foo><b/r><baz>",
 			expectedPath: common.Path{
 				common.PathElement{Name: "foo"},
 				common.PathElement{Name: "b/r"},
 				common.PathElement{Name: "baz"},
 			},
-			expectedNoAttrs: "<foo><b%2Fr><baz>",
+			expectedNoAttrs: "<foo><b/r><baz>",
 		},
 		"c": {
-			source: "<foo><b%2Fr a1=attr-one percent=%25><baz>",
+			source: "<foo><b/r a1=attr-one percent=%25><baz>",
 			expectedPath: common.Path{
 				common.PathElement{Name: "foo"},
 				common.PathElement{Name: "b/r", Attributes: map[string]string{
@@ -89,7 +91,7 @@ func TestPathStrings(t *testing.T) {
 				}},
 				common.PathElement{Name: "baz"},
 			},
-			expectedNoAttrs: "<foo><b%2Fr><baz>",
+			expectedNoAttrs: "<foo><b/r><baz>",
 		},
 	}
 
@@ -102,6 +104,21 @@ func TestPathStrings(t *testing.T) {
 			require.Equal(t, tCase.expectedPath, path)
 			require.Equal(t, tCase.source, path.String())
 			require.Equal(t, tCase.expectedNoAttrs, path.NoAttrString())
+		})
+	}
+}
+
+func TestEncode(t *testing.T) {
+	firstChar := ' '
+	lastChar := '~'
+	for char := range lastChar - firstChar + 1 {
+		t.Run("char_"+strconv.Itoa(int(char)), func(t *testing.T) {
+			t.Parallel()
+
+			escaped := common.Escape(string(char))
+			unescaped, err := url.QueryUnescape(escaped)
+			require.NoError(t, err)
+			require.Equal(t, string(char), unescaped)
 		})
 	}
 }

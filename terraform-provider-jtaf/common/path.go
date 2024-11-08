@@ -12,6 +12,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
+const upperHex = "0123456789ABCDEF"
+
 var pointyBracketRegex = regexp.MustCompile("<[^<>]*>")
 
 type PathElement struct {
@@ -22,7 +24,7 @@ type PathElement struct {
 func (p PathElement) String() string {
 	sb := new(strings.Builder)
 	sb.WriteString("<")
-	sb.WriteString(url.QueryEscape(p.Name))
+	sb.WriteString(escape(p.Name))
 
 	keys := make([]string, len(p.Attributes))
 	var i int
@@ -33,14 +35,14 @@ func (p PathElement) String() string {
 	sort.Strings(keys)
 
 	for _, k := range keys {
-		sb.WriteString(fmt.Sprintf(" %s=%s", url.QueryEscape(k), url.QueryEscape(p.Attributes[k])))
+		sb.WriteString(fmt.Sprintf(" %s=%s", escape(k), escape(p.Attributes[k])))
 	}
 	sb.WriteString(">")
 	return sb.String()
 }
 
 func (p PathElement) NoAttrString() string {
-	return "<" + url.QueryEscape(p.Name) + ">"
+	return "<" + escape(p.Name) + ">"
 }
 
 func NewPathElement(name string, attributes map[string]string) PathElement {
@@ -137,4 +139,77 @@ func ParseParentPath(parentPath types.String, diags *diag.Diagnostics) Path {
 	}
 
 	return result
+}
+
+// shouldEscape is based on the net/url function of the same name
+func shouldEscape(c byte) bool {
+	if c == '%' || //            //        0x25 must be escaped
+		c == '+' || //           //        0x2b must be escaped
+		('<' <= c && c <= '>') { // 0x3c - 0x3e must be escaped
+		return true
+	}
+
+	if '!' <= c && c <= '~' { // remaining values from 0x21 - 0x7e are okay
+		return false
+	}
+
+	return true // everything else must be escaped
+}
+
+// escape is based on the net/url function of the same name
+func escape(s string) string {
+	spaceCount, hexCount := 0, 0
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if shouldEscape(c) {
+			if c == ' ' {
+				spaceCount++
+			} else {
+				hexCount++
+			}
+		}
+	}
+
+	if spaceCount == 0 && hexCount == 0 {
+		return s
+	}
+
+	var buf [64]byte
+	var t []byte
+
+	required := len(s) + 2*hexCount
+	if required <= len(buf) {
+		t = buf[:required]
+	} else {
+		t = make([]byte, required)
+	}
+
+	if hexCount == 0 {
+		copy(t, s)
+		for i := 0; i < len(s); i++ {
+			if s[i] == ' ' {
+				t[i] = '+'
+			}
+		}
+		return string(t)
+	}
+
+	j := 0
+	for i := 0; i < len(s); i++ {
+		switch c := s[i]; {
+		case c == ' ':
+			t[j] = '+'
+			j++
+		case shouldEscape(c):
+			t[j] = '%'
+			t[j+1] = upperHex[c>>4]
+			t[j+2] = upperHex[c&15]
+			j += 3
+		default:
+			t[j] = s[i]
+			j++
+		}
+	}
+
+	return string(t)
 }
