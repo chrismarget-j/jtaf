@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	myType     = "interface"
-	parentType = ""
+	myType     = "interface" // todo: generated
+	parentType = ""          // todo: generated
 )
 
 var _ resource.ResourceWithConfigure = (*Resource)(nil)
@@ -21,7 +21,7 @@ type Resource struct {
 }
 
 func (r *Resource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-	resp.TypeName = req.ProviderTypeName + parentType + "_" + myType
+	resp.TypeName = common.JoinNonEmptyPartsWithUnderscores(req.ProviderTypeName, parentType, myType)
 }
 
 func (r *Resource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
@@ -51,8 +51,9 @@ func (r *Resource) Create(ctx context.Context, req resource.CreateRequest, resp 
 
 	var x xmlModel
 	x.Name = plan.Name.ValueString()
-	x.Description = plan.Description.ValueStringPointer()
-	x.Mtu = plan.Mtu.ValueInt64Pointer()
+
+	x.Description = plan.Description.ValueStringPointer() // todo: generated
+	x.Mtu = plan.Mtu.ValueInt64Pointer()                  // todo: generated
 
 	r.client.SetConfig(ctx, plan.ParentXPath, x, &resp.Diagnostics)
 	if resp.Diagnostics.HasError() {
