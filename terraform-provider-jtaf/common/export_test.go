@@ -1,3 +1,3 @@
 package common
 
-var Escape = escape
+var XPathGrammarAttributeAt = xPathGrammarAttributeAt

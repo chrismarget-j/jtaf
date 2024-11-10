@@ -55,7 +55,10 @@ func (j *jtafProvider) Configure(ctx context.Context, req provider.ConfigureRequ
 		return
 	}
 
-	resp.ResourceData = &providerdata.ResourceData{Session: cfg.session(ctx, &resp.Diagnostics)}
+	resp.ResourceData = providerdata.NewResourceData(cfg.session(ctx, &resp.Diagnostics))
+	if resp.Diagnostics.HasError() {
+		return
+	}
 }
 
 func (j *jtafProvider) DataSources(_ context.Context) []func() datasource.DataSource {

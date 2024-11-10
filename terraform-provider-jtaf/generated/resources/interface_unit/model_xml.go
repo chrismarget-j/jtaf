@@ -1,8 +1,6 @@
 package resourceinterfaceunit
 
-import (
-	"encoding/xml"
-)
+import "encoding/xml"
 
 type xmlModel struct {
 	XMLName           xml.Name `xml:"unit"`

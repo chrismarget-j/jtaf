@@ -1,8 +1,8 @@
 package generated
 
 import (
-	resourceinterface "github.com/chrismarget-j/jtaf/terraform-provider-jtaf/generated/resources/interface"
-	resourceinterfaceunit "github.com/chrismarget-j/jtaf/terraform-provider-jtaf/generated/resources/interface_unit"
+	"github.com/chrismarget-j/jtaf/terraform-provider-jtaf/generated/resources/interface"
+	"github.com/chrismarget-j/jtaf/terraform-provider-jtaf/generated/resources/interface_unit"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 )
 
