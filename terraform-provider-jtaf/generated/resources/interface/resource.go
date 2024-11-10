@@ -2,11 +2,13 @@ package resourceinterface
 
 import (
 	"context"
+	"encoding/xml"
 
 	"github.com/chrismarget-j/jtaf/terraform-provider-jtaf/common"
 	providerdata "github.com/chrismarget-j/jtaf/terraform-provider-jtaf/provider_data"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 const (
@@ -70,20 +72,22 @@ func (r *Resource) Read(ctx context.Context, req resource.ReadRequest, resp *res
 		return
 	}
 
-	//myPath, err := common.NewPathFromString(state.Path.ValueString())
-	//if err != nil {
-	//	resp.Diagnostics.AddError(fmt.Sprintf("failed to parse resource XML path %s during Read", state.Path), err.Error())
-	//	return
-	//}
-	//
-	//b := r.client.GetConfig(ctx, myPath, &resp.Diagnostics)
-	//if resp.Diagnostics.HasError() {
-	//	return
-	//}
-	//_ = b
-	//
-	// TODO implement me
-	panic("implement me")
+	b := r.client.GetConfig(ctx, state.XPath, &resp.Diagnostics)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	var x xmlModel
+	err := xml.Unmarshal(b, &x)
+	if err != nil {
+		resp.Diagnostics.AddError("cannot unmarshal config XML", err.Error())
+		return
+	}
+
+	state.Description = types.StringPointerValue(x.Description) // todo: generated
+	state.Mtu = types.Int64PointerValue(x.Mtu)                  // todo: generated
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *Resource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {

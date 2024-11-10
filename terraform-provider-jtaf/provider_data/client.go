@@ -1,12 +1,14 @@
 package providerdata
 
 import (
+	"bytes"
 	"context"
 	"encoding/xml"
 	"fmt"
 	"sync"
 
 	"github.com/ChrisTrenkamp/xsel"
+	"github.com/antchfx/xmlquery"
 	"github.com/chrismarget-j/jtaf/terraform-provider-jtaf/common"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -21,7 +23,7 @@ type Client struct {
 	cache         []byte
 }
 
-func (c Client) SetConfig(ctx context.Context, parentPath types.String, v any, diags *diag.Diagnostics) {
+func (c *Client) SetConfig(ctx context.Context, parentPath types.String, v any, diags *diag.Diagnostics) {
 	ds := netconf.Candidate
 
 	pp, err := xsel.BuildExpr(parentPath.ValueString())
@@ -55,51 +57,43 @@ func (c Client) SetConfig(ctx context.Context, parentPath types.String, v any, d
 	}
 }
 
-//func (c Client) GetConfig(ctx context.Context, path common.Path, diags *diag.Diagnostics) []byte {
-//	ds := netconf.Candidate
-//
-//	c.sessionMutext.Lock()
-//	defer c.sessionMutext.Unlock()
-//
-//	var err error
-//	if !c.cacheOk {
-//		c.cache, err = c.session.GetConfig(ctx, ds)
-//		if err != nil {
-//			diags.AddError(fmt.Sprintf("failed while reading device %s config", ds), err.Error())
-//			return nil
-//		}
-//
-//		c.cacheOk = true
-//	}
-//
-//	var cbf exml.TagCallback
-//	cbf = func(attrs exml.Attrs) {
-//
-//	}
-//	_ = cbf
-//
-//	var tcb exml.TextCallback
-//	tcb = func(data exml.CharData) {
-//		x := data
-//		_ = x
-//	}
-//	_ = tcb
-//
-//	slashes := path.DelimitedString("/")
-//
-//	decoder := exml.NewDecoder(bytes.NewReader(c.cache))
-//	//decoder.On(slashes, func(attrs exml.Attrs) {
-//	//	decoder.OnText(tcb)
-//	//})
-//	//decoder.OnText()
-//	decoder.OnTextOf(slashes, func(data exml.CharData) {
-//		a := data
-//		_ = a
-//	})
-//	decoder.Run()
-//
-//	return nil
-//}
+func (c *Client) GetConfig(ctx context.Context, path types.String, diags *diag.Diagnostics) []byte {
+	ds := netconf.Candidate
+
+	c.sessionMutext.Lock()
+	defer c.sessionMutext.Unlock()
+
+	if !c.cacheOk {
+		var err error
+		c.cache, err = c.session.GetConfig(ctx, ds)
+		if err != nil {
+			diags.AddError(fmt.Sprintf("failed while reading device %s config", ds), err.Error())
+			return nil
+		}
+
+		c.cacheOk = true
+	}
+
+	cfg, err := xmlquery.Parse(bytes.NewReader(c.cache))
+	if err != nil {
+		diags.AddError("failed to parse device config", err.Error())
+		return nil
+	}
+
+	nodes := xmlquery.Find(cfg, path.ValueString())
+	switch len(nodes) {
+	case 0:
+		return nil
+	case 1:
+	default:
+		diags.AddError(
+			fmt.Sprintf("Expected 0-1 matches from device config, found %d", len(nodes)),
+			fmt.Sprintf("xpath query: %q", path.ValueString()),
+		)
+	}
+
+	return []byte(nodes[0].OutputXML(true))
+}
 
 func newClient(session *netconf.Session) Client {
 	return Client{
