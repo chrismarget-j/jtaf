@@ -32,7 +32,7 @@ func main() {
 
 	httpClient := http.DefaultClient
 
-	yangDirs, err := yangcache.Populate(ctx, cfg, httpClient)
+	yangDirs, err := yangcache.Populate(ctx, cfg, httpClient) // 1.9s (validate) / 4-13s (from github)
 	if err != nil {
 		log.Fatal(fmt.Errorf("while populating yang cache - %w", err))
 	}
@@ -42,15 +42,15 @@ func main() {
 		log.Fatal(fmt.Errorf("while parsing device config file %q - %w", cfg.JunosConfigFile, err))
 	}
 
-	cfgRoot, err := ouryang.GetYangEntryByName(configRoot, yangDirs)
+	cfgRoot, err := ouryang.GetYangEntryByName(configRoot, yangDirs) // 4.5s
 	if err != nil {
 		log.Fatal(fmt.Errorf("while getting %s from %q - %w", configRoot, cfg.YangCacheDir(), err))
 	}
 
-	ouryang.TrimUnions(cfgRoot)
-
 	log.Printf("Trimming YANG entries down to the minimal set required for %d configuration paths...\n", len(breadcrumbTrails))
-	ouryang.TrimToConfig(cfgRoot, breadcrumbTrails)
+	ouryang.TrimToConfig(cfgRoot, breadcrumbTrails) // <1ms
+
+	ouryang.TrimUnions(cfgRoot) // < 1ms
 	return
 
 	getUnions(cfgRoot, nil)
@@ -148,4 +148,56 @@ func exploreYangBreadcrumbs(entry *yang.Entry, paths [][]string) error {
 	}
 
 	return nil
+}
+
+func getLeafNames(ye *yang.Entry) map[string]struct{} {
+	//var totalCount int                  // 6173
+	//var alphaNumCount int               // 949
+	//var alphaNumWithHyphenCount int     // 5210
+	//var alphaNumWithUnderscoreCount int // 10
+	//var remainingCount int
+	//alphaNum := regexp.MustCompile("^[a-zA-Z][a-zA-Z0-9]*$")
+	//alphaNumWithHyphen := regexp.MustCompile("^[a-zA-Z][a-zA-Z0-9-]*$")
+	//alphaNumWithUnderscore := regexp.MustCompile("^[a-zA-Z][a-zA-Z0-9_]*$")
+	//
+	//leafNameMap := getLeafNames(cfgRoot)
+	//totalCount = len(leafNameMap)
+	//leafNameSlice := make([]string, 0, len(leafNameMap))
+	//for k := range leafNameMap {
+	//	if alphaNum.MatchString(k) {
+	//		alphaNumCount++
+	//		continue
+	//	}
+	//	if alphaNumWithHyphen.MatchString(k) {
+	//		alphaNumWithHyphenCount++
+	//		continue
+	//	}
+	//	if alphaNumWithUnderscore.MatchString(k) {
+	//		alphaNumWithUnderscoreCount++
+	//		continue
+	//	}
+	//	leafNameSlice = append(leafNameSlice, k)
+	//}
+	//sort.Strings(leafNameSlice)
+	//remainingCount = len(leafNameSlice)
+	//_ = totalCount
+	//_ = remainingCount
+	//
+	//for _, ln := range leafNameSlice {
+	//	fmt.Println(ln)
+	//}
+
+	result := make(map[string]struct{})
+	if ye.Kind == yang.LeafEntry {
+		result[ye.Name] = struct{}{}
+	}
+
+	for _, de := range ye.Dir {
+		deResult := getLeafNames(de)
+		for k := range deResult {
+			result[k] = struct{}{}
+		}
+	}
+
+	return result
 }

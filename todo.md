@@ -6,5 +6,13 @@
 - ~~semaphore for client transactions~~
 - eliminate path attribute for top-level resources
 - introduce function to convert XML config attributes to terraform attributes
-  - Figure out whether any yang leafs begin with non-alpha characters
-  - `native-inner-vlan-id` -> `native_inner_vlan_id`
+  - ~~Figure out whether any yang leafs begin with non-alpha characters~~
+  - e.g. `native-inner-vlan-id` -> `native_inner_vlan_id`
+  - lots of leaf nodes (5000+) contain `-` (0x2d) - need to handle these
+  - filtering with this regex `^[a-zA-Z][a-zA-Z0-9_-]*$` leaves only:
+    - `inet.0`
+    - `inet6.0`
+    - `inet6.3`
+    - `to-802.1p-from-dscp`
+  - no leaf nodes begin with something other than `a-z` and `A-Z`
+  - looks like we need to handle only `-` (0x2d) and `.` (0x2e)
