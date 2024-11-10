@@ -3,13 +3,13 @@ package resourceinterfaceunit
 import (
 	"context"
 	"encoding/xml"
-	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 
 	"github.com/chrismarget-j/jtaf/terraform-provider-jtaf/common"
 	providerdata "github.com/chrismarget-j/jtaf/terraform-provider-jtaf/provider_data"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 )
 
 const (
@@ -121,7 +121,7 @@ func (r *Resource) Read(ctx context.Context, req resource.ReadRequest, resp *res
 			stateFamily.Inet = common.ObjectValueFromWithDiags(ctx, (*tfModelFamilyInet)(nil).attrTypes(), stateFamilyInet, &resp.Diagnostics)
 		}
 
-		state.Family = common.ObjectValueFromWithDiags(ctx, (*tfModelFamily)().attrTypes(), stateFamily, &resp.Diagnostics)
+		state.Family = common.ObjectValueFromWithDiags(ctx, (*tfModelFamily)(nil).attrTypes(), stateFamily, &resp.Diagnostics)
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
