@@ -43,20 +43,16 @@ func (c Client) SetConfig(ctx context.Context, parentPath types.String, v any, d
 
 	payload := header + string(xmlBytes) + "\n" + footer
 
-	err = c.editConfig(ctx, ds, []byte(payload))
-	if err != nil {
-		diags.AddError(fmt.Sprintf("failed while editing device %s config", ds), err.Error())
-		return
-	}
-}
-
-func (c Client) editConfig(ctx context.Context, target netconf.Datastore, config any, opts ...netconf.EditConfigOption) error {
 	c.sessionMutext.Lock()
 	defer c.sessionMutext.Unlock()
 
 	c.cacheOk = false
 
-	return c.session.EditConfig(ctx, target, config, opts...)
+	err = c.session.EditConfig(ctx, ds, []byte(payload))
+	if err != nil {
+		diags.AddError(fmt.Sprintf("failed while editing device %s config", ds), err.Error())
+		return
+	}
 }
 
 //func (c Client) GetConfig(ctx context.Context, path common.Path, diags *diag.Diagnostics) []byte {
