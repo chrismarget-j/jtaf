@@ -1,4 +1,5 @@
 # To Do:
+- figure out candidate vs. running datastore stuff
 - add git commit and git tag variables
 - collect hash of yang data
 - calculate provider name
