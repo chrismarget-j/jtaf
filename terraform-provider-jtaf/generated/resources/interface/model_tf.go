@@ -1,8 +1,10 @@
 package resourceinterface
 
 import (
+	"context"
 	"github.com/chrismarget-j/jtaf/terraform-provider-jtaf/common"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -28,4 +30,14 @@ func (t *tfModel) attributes() map[string]schema.Attribute {
 		"description":  schema.StringAttribute{Optional: true},
 		"mtu":          schema.Int64Attribute{Optional: true},
 	}
+}
+
+func (t *tfModel) toXmlStruct(ctx context.Context, target *xmlModel, diags *diag.Diagnostics) {
+	if t == nil {
+		return
+	}
+
+	target.Name = t.Name.ValueString()
+	target.Description = t.Description.ValueStringPointer()
+	target.Mtu = t.Mtu.ValueInt64Pointer()
 }

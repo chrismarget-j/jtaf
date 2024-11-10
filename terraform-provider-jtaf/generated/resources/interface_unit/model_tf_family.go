@@ -26,18 +26,15 @@ func (t *tfModelFamily) attrTypes() map[string]attr.Type {
 	}
 }
 
-func (t *tfModelFamily) toXmlStruct(ctx context.Context, diags *diag.Diagnostics) *xmlModelFamily {
+func (t *tfModelFamily) toXmlStruct(ctx context.Context, target *xmlModelFamily, diags *diag.Diagnostics) {
 	if t == nil {
-		return nil
+		return
 	}
-
-	x := new(xmlModelFamily)
 
 	if !t.Inet.IsNull() {
-		x.Inet = tfModelFamilyInetFromTypesObject(ctx, t.Inet, diags).toXmlStruct(ctx, diags)
+		target.Inet = new(xmlModelFamilyInet)
+		tfModelFamilyInetFromTypesObject(ctx, t.Inet, diags).toXmlStruct(ctx, target.Inet, diags)
 	}
-
-	return x
 }
 
 func tfModelFamilyFromTypesObject(ctx context.Context, in types.Object, diags *diag.Diagnostics) *tfModelFamily {

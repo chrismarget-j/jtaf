@@ -52,11 +52,7 @@ func (r *Resource) Create(ctx context.Context, req resource.CreateRequest, resp 
 	plan.Id = plan.XPath
 
 	var x xmlModel
-	x.Name = plan.Name.ValueString()
-
-	x.Description = plan.Description.ValueStringPointer()                                                            // todo: generated
-	x.NativeInnerVlanId = plan.NativeInnerVlanId.ValueInt64Pointer()                                                 // todo: generated
-	x.Family = tfModelFamilyFromTypesObject(ctx, plan.Family, &resp.Diagnostics).toXmlStruct(ctx, &resp.Diagnostics) // todo: generated
+	plan.toXmlStruct(ctx, &x, &resp.Diagnostics)
 
 	r.client.SetConfig(ctx, plan.ParentXPath, x, &resp.Diagnostics)
 	if resp.Diagnostics.HasError() {

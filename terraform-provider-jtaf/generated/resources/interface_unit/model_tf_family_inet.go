@@ -26,18 +26,14 @@ func (t *tfModelFamilyInet) attrTypes() map[string]attr.Type {
 	}
 }
 
-func (t *tfModelFamilyInet) toXmlStruct(ctx context.Context, diags *diag.Diagnostics) *xmlModelFamilyInet {
+func (t *tfModelFamilyInet) toXmlStruct(ctx context.Context, target *xmlModelFamilyInet, diags *diag.Diagnostics) {
 	if t == nil {
-		return nil
+		return
 	}
-
-	x := new(xmlModelFamilyInet)
 
 	if !t.ArpMaxCache.IsNull() {
-		x.ArpMaxCache = t.ArpMaxCache.ValueInt64Pointer()
+		target.ArpMaxCache = t.ArpMaxCache.ValueInt64Pointer()
 	}
-
-	return x
 }
 
 func tfModelFamilyInetFromTypesObject(ctx context.Context, in types.Object, diags *diag.Diagnostics) *tfModelFamilyInet {

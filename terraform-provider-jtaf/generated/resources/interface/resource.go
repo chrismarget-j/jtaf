@@ -52,10 +52,7 @@ func (r *Resource) Create(ctx context.Context, req resource.CreateRequest, resp 
 	plan.Id = plan.XPath
 
 	var x xmlModel
-	x.Name = plan.Name.ValueString()
-
-	x.Description = plan.Description.ValueStringPointer() // todo: generated
-	x.Mtu = plan.Mtu.ValueInt64Pointer()                  // todo: generated
+	plan.toXmlStruct(ctx, &x, &resp.Diagnostics)
 
 	r.client.SetConfig(ctx, plan.ParentXPath, x, &resp.Diagnostics)
 	if resp.Diagnostics.HasError() {

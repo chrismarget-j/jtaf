@@ -1,8 +1,10 @@
 package resourceinterfaceunit
 
 import (
+	"context"
 	"github.com/chrismarget-j/jtaf/terraform-provider-jtaf/common"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -29,5 +31,19 @@ func (t *tfModel) attributes() map[string]schema.Attribute {
 		"description":          schema.StringAttribute{Optional: true},
 		"native_inner_vlan_id": schema.Int64Attribute{Optional: true},
 		"family":               schema.SingleNestedAttribute{Optional: true, Attributes: (*tfModelFamily)(nil).attributes()},
+	}
+}
+
+func (t *tfModel) toXmlStruct(ctx context.Context, target *xmlModel, diags *diag.Diagnostics) {
+	if t == nil {
+		return
+	}
+
+	target.Name = t.Name.ValueString()
+	target.Description = t.Description.ValueStringPointer()
+	target.NativeInnerVlanId = t.NativeInnerVlanId.ValueInt64Pointer()
+	if !t.Family.IsNull() {
+		target.Family = new(xmlModelFamily)
+		tfModelFamilyFromTypesObject(ctx, t.Family, diags).toXmlStruct(ctx, target.Family, diags)
 	}
 }
