@@ -3,6 +3,7 @@ package resourceinterfaceunit
 import (
 	"context"
 	"encoding/xml"
+	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
 
 	"github.com/chrismarget-j/jtaf/terraform-provider-jtaf/common"
 	providerdata "github.com/chrismarget-j/jtaf/terraform-provider-jtaf/provider_data"
@@ -57,6 +58,26 @@ func (r *Resource) Create(ctx context.Context, req resource.CreateRequest, resp 
 	x.Description = plan.Description.ValueStringPointer()            // todo: generated
 	x.NativeInnerVlanId = plan.NativeInnerVlanId.ValueInt64Pointer() // todo: generated
 
+	if !plan.Family.IsNull() {
+		x.Family = new(xmlModelFamily)
+		var planFamily tfModelFamily
+		resp.Diagnostics.Append(plan.Family.As(ctx, &planFamily, basetypes.ObjectAsOptions{})...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+
+		if !planFamily.Inet.IsNull() {
+			x.Family.Inet = new(xmlModelFamilyInet)
+			var planFamilyInet tfModelFamilyInet
+			resp.Diagnostics.Append(planFamily.Inet.As(ctx, &planFamilyInet, basetypes.ObjectAsOptions{})...)
+			if resp.Diagnostics.HasError() {
+				return
+			}
+
+			x.Family.Inet.ArpMaxCache = planFamilyInet.ArpMaxCache.ValueInt64Pointer()
+		}
+	}
+
 	r.client.SetConfig(ctx, plan.ParentXPath, x, &resp.Diagnostics)
 	if resp.Diagnostics.HasError() {
 		return
@@ -86,6 +107,22 @@ func (r *Resource) Read(ctx context.Context, req resource.ReadRequest, resp *res
 
 	state.Description = types.StringPointerValue(x.Description)            // todo: generated
 	state.NativeInnerVlanId = types.Int64PointerValue(x.NativeInnerVlanId) // todo: generated
+
+	if x.Family != nil {
+		stateFamily := new(tfModelFamily)
+
+		if x.Family.Inet != nil {
+			stateFamilyInet := new(tfModelFamilyInet)
+
+			if x.Family.Inet.ArpMaxCache != nil {
+				stateFamilyInet.ArpMaxCache = types.Int64PointerValue(x.Family.Inet.ArpMaxCache)
+			}
+
+			stateFamily.Inet = common.ObjectValueFromWithDiags(ctx, (*tfModelFamilyInet)(nil).attrTypes(), stateFamilyInet, &resp.Diagnostics)
+		}
+
+		state.Family = common.ObjectValueFromWithDiags(ctx, (*tfModelFamily)().attrTypes(), stateFamily, &resp.Diagnostics)
+	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
