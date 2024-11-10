@@ -2,6 +2,7 @@ package resourceinterface
 
 import (
 	"context"
+
 	"github.com/chrismarget-j/jtaf/terraform-provider-jtaf/common"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -37,7 +38,7 @@ func (t *tfModel) toXmlStruct(ctx context.Context, target *xmlModel, diags *diag
 		return
 	}
 
-	target.Name = t.Name.ValueString()
+	target.Name = t.Name.ValueStringPointer()
 	target.Description = t.Description.ValueStringPointer()
 	target.Mtu = t.Mtu.ValueInt64Pointer()
 }
