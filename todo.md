@@ -18,3 +18,4 @@
   - no leaf nodes begin with something other than `a-z` and `A-Z`
   - looks like we need to handle only `-` (0x2d) and `.` (0x2e)
 - set XMLName on everything (remove parent struct tag?)
+- reintroduce 'id' attribute as hash of xpath
