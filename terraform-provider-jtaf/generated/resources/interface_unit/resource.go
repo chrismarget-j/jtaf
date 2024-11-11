@@ -88,8 +88,25 @@ func (r *Resource) Read(ctx context.Context, req resource.ReadRequest, resp *res
 }
 
 func (r *Resource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	// TODO implement me
-	panic("implement me")
+	var plan tfModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	var x xmlModel
+	x.loadTfData(ctx, common.ObjectValueFromAttrTyper(ctx, &plan, &resp.Diagnostics), &resp.Diagnostics)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// todo - this doesn't delete unwanted config elements
+	r.client.SetConfig(ctx, plan.ParentXPath, x, &resp.Diagnostics)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
 func (r *Resource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
