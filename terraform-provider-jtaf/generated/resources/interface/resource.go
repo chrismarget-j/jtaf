@@ -48,6 +48,7 @@ func (r *Resource) Create(ctx context.Context, req resource.CreateRequest, resp 
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	plan.Id = common.XPathHash(plan.XPath)
 
 	var x xmlModel
 	x.loadTfData(ctx, common.ObjectValueFromAttrTyper(ctx, &plan, &resp.Diagnostics), &resp.Diagnostics)

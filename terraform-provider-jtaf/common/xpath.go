@@ -1,6 +1,7 @@
 package common
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"strings"
 
@@ -80,4 +81,10 @@ func xPathGrammarAttributeAt(g xsel.Grammar, left int) (map[string]string, int, 
 			}
 		}
 	}
+}
+
+func XPathHash(xpath types.String) types.String {
+	h := sha256.New()
+	h.Write([]byte(xpath.ValueString()))
+	return types.StringValue(fmt.Sprintf("%x", h.Sum(nil))[:12])
 }

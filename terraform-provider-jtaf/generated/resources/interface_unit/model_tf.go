@@ -17,6 +17,7 @@ import (
 var _ common.AttrTyper = (*tfModel)(nil)
 
 type tfModel struct {
+	Id                types.String `tfsdk:"id"`
 	XPath             types.String `tfsdk:"xpath"`
 	Name              types.String `tfsdk:"name"`
 	ParentXPath       types.String `tfsdk:"parent_xpath"`
@@ -27,6 +28,7 @@ type tfModel struct {
 
 func (t *tfModel) AttrTypes() map[string]attr.Type {
 	return map[string]attr.Type{
+		"id":                   types.StringType,
 		"xpath":                types.StringType,
 		"name":                 types.StringType,
 		"parent_xpath":         types.StringType,
@@ -38,6 +40,7 @@ func (t *tfModel) AttrTypes() map[string]attr.Type {
 
 func (t *tfModel) attributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
+		"id":                   schema.StringAttribute{Computed: true, PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
 		"xpath":                schema.StringAttribute{Computed: true, PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
 		"name":                 schema.StringAttribute{Required: true, PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}},
 		"parent_xpath":         schema.StringAttribute{Required: true, Validators: []validator.String{stringvalidator.RegexMatches(common.XPathRegex, common.XPathRegexMsg)}},
