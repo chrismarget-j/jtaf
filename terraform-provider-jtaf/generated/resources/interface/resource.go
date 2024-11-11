@@ -8,7 +8,6 @@ import (
 	providerdata "github.com/chrismarget-j/jtaf/terraform-provider-jtaf/provider_data"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 const (
@@ -49,10 +48,12 @@ func (r *Resource) Create(ctx context.Context, req resource.CreateRequest, resp 
 	if resp.Diagnostics.HasError() {
 		return
 	}
-	plan.Id = plan.XPath
 
 	var x xmlModel
-	plan.toXmlStruct(ctx, &x, &resp.Diagnostics)
+	x.loadTfData(ctx, common.ObjectValueFromAttrTyper(ctx, &plan, &resp.Diagnostics), &resp.Diagnostics)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
 	r.client.SetConfig(ctx, plan.ParentXPath, x, &resp.Diagnostics)
 	if resp.Diagnostics.HasError() {
@@ -81,8 +82,7 @@ func (r *Resource) Read(ctx context.Context, req resource.ReadRequest, resp *res
 		return
 	}
 
-	state.Description = types.StringPointerValue(x.Description) // todo: generated
-	state.Mtu = types.Int64PointerValue(x.Mtu)                  // todo: generated
+	state.loadXmlData(ctx, &x, &resp.Diagnostics)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
