@@ -7,6 +7,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -24,7 +26,7 @@ func (t *tfModelFamily) AttrTypes() map[string]attr.Type {
 
 func (t *tfModelFamily) attributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
-		"inet": schema.SingleNestedAttribute{Optional: true, Attributes: (*tfModelFamilyInet)(nil).attributes()},
+		"inet": schema.SingleNestedAttribute{Optional: true, Attributes: (*tfModelFamilyInet)(nil).attributes(), PlanModifiers: []planmodifier.Object{objectplanmodifier.RequiresReplace()}},
 	}
 }
 

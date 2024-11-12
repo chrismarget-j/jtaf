@@ -7,14 +7,16 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
+	"github.com/nemith/netconf"
 )
 
 type xmlModel struct {
-	XMLName           xml.Name        `xml:"unit"`
-	Name              *string         `xml:"name"`
-	Description       *string         `xml:"description,omitempty"`
-	NativeInnerVlanId *int64          `xml:"native-inner-vlan-id,omitempty"`
-	Family            *xmlModelFamily `xml:"family,omitempty"`
+	XMLName           xml.Name              `xml:"unit"`
+	XmlAttrOperation  netconf.MergeStrategy `xml:"operation,attr,omitempty"`
+	Name              *string               `xml:"name"`
+	Description       *string               `xml:"description,omitempty"`
+	NativeInnerVlanId *int64                `xml:"native-inner-vlan-id,omitempty"`
+	Family            *xmlModelFamily       `xml:"family,omitempty"`
 }
 
 func (x *xmlModel) loadTfData(ctx context.Context, tfObj types.Object, diags *diag.Diagnostics) {

@@ -3,6 +3,7 @@ package resourceinterfaceunit
 import (
 	"context"
 	"encoding/xml"
+	"github.com/nemith/netconf"
 
 	"github.com/chrismarget-j/jtaf/terraform-provider-jtaf/common"
 	providerdata "github.com/chrismarget-j/jtaf/terraform-provider-jtaf/provider_data"
@@ -70,6 +71,10 @@ func (r *Resource) Read(ctx context.Context, req resource.ReadRequest, resp *res
 	if resp.Diagnostics.HasError() {
 		return
 	}
+	if b == nil {
+		resp.State.RemoveResource(ctx)
+		return
+	}
 
 	var x xmlModel
 	err := xml.Unmarshal(b, &x)
@@ -84,28 +89,21 @@ func (r *Resource) Read(ctx context.Context, req resource.ReadRequest, resp *res
 }
 
 func (r *Resource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan tfModel
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	panic("not implemented")
+}
+
+func (r *Resource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var state tfModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
 	var x xmlModel
-	x.loadTfData(ctx, common.ObjectValueFromAttrTyper(ctx, &plan, &resp.Diagnostics), &resp.Diagnostics)
+	x.XmlAttrOperation = netconf.DeleteConfig
+
+	r.client.SetConfig(ctx, state.ParentXPath, x, &resp.Diagnostics)
 	if resp.Diagnostics.HasError() {
 		return
 	}
-
-	// todo - this doesn't delete unwanted config elements
-	r.client.SetConfig(ctx, plan.ParentXPath, x, &resp.Diagnostics)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
-}
-
-func (r *Resource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	// TODO implement me
-	panic("implement me")
 }
