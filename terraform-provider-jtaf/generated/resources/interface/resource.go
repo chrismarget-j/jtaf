@@ -10,11 +10,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 )
 
-const (
-	myType     = "interface" // todo: generated
-	parentType = ""          // todo: generated
-)
-
 var _ resource.ResourceWithConfigure = (*Resource)(nil)
 
 type Resource struct {
