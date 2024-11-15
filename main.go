@@ -17,7 +17,6 @@ import (
 )
 
 const (
-	configRoot        = "junos-conf-root"
 	junosByRefPattern = "<.*>|$.*"
 )
 
@@ -47,9 +46,9 @@ func main() {
 		log.Fatal(fmt.Errorf("while parsing device config file %q - %w", cfg.JunosConfigFile, err))
 	}
 
-	cfgRoot, err := ouryang.GetYangEntryByName(configRoot, yangDirs) // 4.5s
+	cfgRoot, err := ouryang.GetYangEntryByName(cfg.ConfigRoot(), yangDirs) // 4.5s
 	if err != nil {
-		log.Fatal(fmt.Errorf("while getting %s from %q - %w", configRoot, cfg.YangCacheDir(), err))
+		log.Fatal(fmt.Errorf("while getting %s from %q - %w", cfg.ConfigRoot(), yangDirs, err))
 	}
 
 	log.Printf("Trimming YANG entries down to the minimal set required for %d configuration paths...\n", len(breadcrumbTrails))

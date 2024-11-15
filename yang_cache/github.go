@@ -16,24 +16,33 @@ import (
 	"github.com/google/go-github/v66/github"
 )
 
-// repoContentByDir returns map[string]github.RepositoryContent keyed by path within the repository.
-func repoContentByDir(ctx context.Context, dir string, cfg jtafcfg.Cfg, client *github.Client) (map[string]github.RepositoryContent, error) {
-	_, directoryContent, _, err := client.Repositories.GetContents(ctx, cfg.YamlRepoInfo.Owner, cfg.YamlRepoInfo.Name, dir, &github.RepositoryContentGetOptions{Ref: cfg.YamlRepoInfo.Ref})
+// repoContentByPath returns map[string]github.RepositoryContent keyed by path within the repository.
+func repoContentByPath(ctx context.Context, repoPath string, cfg jtafcfg.Cfg, client *github.Client) (map[string]github.RepositoryContent, error) {
+	fileContent, directoryContent, _, err := client.Repositories.GetContents(ctx, cfg.YamlRepoInfo.Owner, cfg.YamlRepoInfo.Name, repoPath, &github.RepositoryContentGetOptions{Ref: cfg.YamlRepoInfo.Ref})
 	if err != nil {
-		return nil, fmt.Errorf("while getting repository content %q - %w", path.Join(cfg.RepoPath(), dir), err)
+		return nil, fmt.Errorf("while getting repository content %q - %w", path.Join(cfg.RepoPath(), repoPath), err)
 	}
 
 	result := make(map[string]github.RepositoryContent, len(directoryContent))
+
+	if fileContent != nil {
+		if fileContent.Path == nil {
+			return nil, fmt.Errorf("content from %q has nil Path element", path.Join(cfg.RepoPath(), repoPath))
+		}
+
+		result[*fileContent.Path] = *fileContent
+	}
+
 	for i, content := range directoryContent {
 		if content.Path == nil {
-			return nil, fmt.Errorf("content %d from %q has nil Path element", i, path.Join(cfg.RepoPath(), dir))
+			return nil, fmt.Errorf("content %d from %q has nil Path element", i, path.Join(cfg.RepoPath(), repoPath))
 		}
 
 		result[*content.Path] = *content
 	}
 
 	if len(result) == 0 {
-		return nil, fmt.Errorf("no platform yang files found in github repo %q path %q", cfg.RepoPath(), dir)
+		return nil, fmt.Errorf("no platform yang files found in github repo %q path %q", cfg.RepoPath(), repoPath)
 	}
 
 	return result, nil
@@ -44,7 +53,7 @@ func repoContentByDir(ctx context.Context, dir string, cfg jtafcfg.Cfg, client *
 func yangFilesRepoContent(ctx context.Context, cfg jtafcfg.Cfg, client *github.Client) (map[string]github.RepositoryContent, error) {
 	yangFiles := make(map[string]github.RepositoryContent)
 	for _, repoDir := range cfg.RepoYangDirs() {
-		m, err := repoContentByDir(ctx, repoDir, cfg, client)
+		m, err := repoContentByPath(ctx, repoDir, cfg, client)
 		if err != nil {
 			return nil, fmt.Errorf("while getting yang file URLs from %q - %w", repoDir, err)
 		}
@@ -144,10 +153,14 @@ func populateYangCacheFromGithub(ctx context.Context, cfg jtafcfg.Cfg, httpClien
 	}
 
 	yangDirs := make(map[string]struct{})
-	for repoPath, repositoryContent := range repoPathToRepositoryContent {
+	for _, repositoryContent := range repoPathToRepositoryContent {
+		if repositoryContent.GetType() == "dir" {
+			continue
+		}
+
 		filePath, err := cacheRepositoryContent(ctx, cfg, httpClient, repositoryContent)
 		if err != nil {
-			return nil, fmt.Errorf("while caching yang file %q - %w", path.Join(cfg.JunosYangCacheDir(), repoPath), err)
+			return nil, fmt.Errorf("while caching yang file %q - %w", cfg.TargetFileName(repositoryContent), err)
 		}
 
 		yangDirs[path.Dir(filePath)] = struct{}{}

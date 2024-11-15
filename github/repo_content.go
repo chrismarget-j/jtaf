@@ -8,7 +8,7 @@ import (
 )
 
 func ValidateRepositoryContent(content github.RepositoryContent) error {
-	if content.DownloadURL == nil {
+	if content.DownloadURL == nil && content.Type != nil && *content.Type != "dir" {
 		return fmt.Errorf("requested content has nil DownloadURL element")
 	}
 

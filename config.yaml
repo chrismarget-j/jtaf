@@ -2,16 +2,20 @@
 git_ref: master
 cache_dir: /tmp/.jtaf_cache
 junos_config_xml: test_data/test.xml
-junos_family: junos-es
-junos_version: 23.1R1
+junos_family: junos
+#junos_family: junos-es
+#junos_family: junos-evo
+#junos_family: junos-ex
+#junos_family: junos-qfx
+junos_version: 23.1R2
 yang_patches:
   - original_git_sha: 0acaaa26d84570516d6983a4d9211969b743b916
     required_sha_256: 07ef6ddc587977d652ecdc9a0b84486171da34cda7081ff78578c1542addf73a
     diff: |
-      diff --git a/23.1/23.1R1/junos/conf/junos-conf-system@2023-01-01.yang b/23.1/23.1R1/junos/conf/junos-conf-system@2023-01-01.yang
+      diff --git a/junos-conf-system@2023-01-01.yang b/junos-conf-system@2023-01-01.yang
       index 0acaaa26..5d699f50 100644
-      --- a/23.1/23.1R1/junos/conf/junos-conf-system@2023-01-01.yang
-      +++ b/23.1/23.1R1/junos/conf/junos-conf-system@2023-01-01.yang
+      --- a/junos-conf-system@2023-01-01.yang
+      +++ b/junos-conf-system@2023-01-01.yang
       @@ -7185,7 +7185,6 @@
               container traceoptions {
                 description "Autoconfiguration trace options";
@@ -20,30 +24,106 @@ yang_patches:
               }
             }
             container processes {
-github_yang_paths:
+  - original_git_sha: 2a7eabca2c8631e09b2d73b3f9e3f5170cd222a0
+    required_sha_256: 05f8348069daefaf8bbc07af8001711c2347197115b4ccfe38be9ac55d3d6ea1
+    diff: |+
+      diff --git a/ietf-yang-metadata.yang b/ietf-yang-metadata@2016-08-05.yang
+      index 2a7eabc..5939eeb 100644
+      --- a/ietf-yang-metadata.yang
+      +++ b/ietf-yang-metadata@2016-08-05.yang
+      @@ -1,5 +1,7 @@
+       module ietf-yang-metadata {
+      +
+         namespace "urn:ietf:params:xml:ns:yang:ietf-yang-metadata";
+      +
+         prefix "md";
+       
+         organization
+git_repo_yang_paths:
   22.4R1:
     junos:
       - 22.4/22.4R1/common
       - 22.4/22.4R1/junos/conf
+      - 23.4/23.4R2-EVO/ietf/models/ietf-yang-metadata.yang
     junos-es:
       - 22.4/22.4R1/common
       - 22.4/22.4R1/junos-es/conf
+      - 23.4/23.4R2-EVO/ietf/models/ietf-yang-metadata.yang
     junos-ex:
       - 22.4/22.4R1/common
       - 22.4/22.4R1/junos-ex/conf
+      - 23.4/23.4R2-EVO/ietf/models/ietf-yang-metadata.yang
     junos-qfx:
       - 22.4/22.4R1/common
       - 22.4/22.4R1/junos-qfx/conf
+      - 23.4/23.4R2-EVO/ietf/models/ietf-yang-metadata.yang
   23.1R1:
     junos:
       - 23.1/23.1R1/common
       - 23.1/23.1R1/junos/conf
+      - 23.4/23.4R2-EVO/ietf/models/ietf-yang-metadata.yang
     junos-es:
       - 23.1/23.1R1/common
       - 23.1/23.1R1/junos-es/conf
+      - 23.4/23.4R2-EVO/ietf/models/ietf-yang-metadata.yang
     junos-ex:
       - 23.1/23.1R1/common
       - 23.1/23.1R1/junos-ex/conf
+      - 23.4/23.4R2-EVO/ietf/models/ietf-yang-metadata.yang
     junos-qfx:
       - 23.1/23.1R1/common
       - 23.1/23.1R1/junos-qfx/conf
+      - 23.4/23.4R2-EVO/ietf/models/ietf-yang-metadata.yang
+  23.2R1:
+    junos:
+      - 23.2/23.2R1/common
+      - 23.2/23.2R1/junos/conf
+      - 23.4/23.4R2-EVO/ietf/models/ietf-yang-metadata.yang
+    junos-es:
+      - 23.2/23.2R1/common
+      - 23.2/23.2R1/junos-es/conf
+      - 23.4/23.4R2-EVO/ietf/models/ietf-yang-metadata.yang
+    junos-ex:
+      - 23.2/23.2R1/common
+      - 23.2/23.2R1/junos-ex/conf
+      - 23.4/23.4R2-EVO/ietf/models/ietf-yang-metadata.yang
+    junos-qfx:
+      - 23.2/23.2R1/common
+      - 23.2/23.2R1/junos-qfx/conf
+      - 23.4/23.4R2-EVO/ietf/models/ietf-yang-metadata.yang
+  23.2R2:
+    junos:
+      - 23.2/23.2R2/common
+      - 23.2/23.2R2/junos/conf
+    junos-es:
+      - 23.2/23.2R2/common
+      - 23.2/23.2R2/junos-es/conf
+    junos-ex:
+      - 23.2/23.2R2/common
+      - 23.2/23.2R2/junos-ex/conf
+    junos-qfx:
+      - 23.2/23.2R2/common
+      - 23.2/23.2R2/junos-qfx/conf
+  23.4R1:
+    junos:
+      - 23.4/23.4R1/native/conf-and-rpcs/common/models
+      - 23.4/23.4R1/native/conf-and-rpcs/junos/conf/models
+      - 23.4/23.4R2-EVO/ietf/models/ietf-yang-metadata.yang
+    junos-es:
+      - 23.4/23.4R1/native/conf-and-rpcs/common/models
+      - 23.4/23.4R1/native/conf-and-rpcs/junos-es/conf/models
+      - 23.4/23.4R2-EVO/ietf/models/ietf-yang-metadata.yang
+    junos-evo:
+      - 23.4/23.4R1-EVO/ietf/models
+      - 23.4/23.4R1-EVO/ietf/models/deviations
+      - 23.4/23.4R1-EVO/native/conf-and-rpcs/common/models
+      - 23.4/23.4R1-EVO/native/conf-and-rpcs/conf/models
+      - 23.4/23.4R1-EVO/native/jti/models/junos-base-extensions.yang
+    junos-ex:
+      - 23.4/23.4R1/native/conf-and-rpcs/common/models
+      - 23.4/23.4R1/native/conf-and-rpcs/junos-ex/conf/models
+      - 23.4/23.4R2-EVO/ietf/models/ietf-yang-metadata.yang
+    junos-qfx:
+      - 23.4/23.4R1/native/conf-and-rpcs/common/models
+      - 23.4/23.4R1/native/conf-and-rpcs/junos-qfx/conf/models
+      - 23.4/23.4R2-EVO/ietf/models/ietf-yang-metadata.yang
