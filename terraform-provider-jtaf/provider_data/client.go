@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -52,6 +53,11 @@ func (c *Client) SetConfig(ctx context.Context, parentPath types.String, v any, 
 
 	err = c.session.EditConfig(ctx, ds, []byte(payload))
 	if err != nil {
+		var rpce netconf.RPCError
+		if errors.As(err, &rpce) && rpce.Severity == netconf.ErrSevWarning {
+			diags.AddWarning(fmt.Sprintf("warning while editing device %s config", ds), err.Error())
+			return
+		}
 		diags.AddError(fmt.Sprintf("failed while editing device %s config", ds), err.Error())
 		return
 	}
@@ -67,8 +73,14 @@ func (c *Client) GetConfig(ctx context.Context, path types.String, diags *diag.D
 		var err error
 		c.cache, err = c.session.GetConfig(ctx, ds)
 		if err != nil {
+			var rpce netconf.RPCError
+			if errors.As(err, &rpce) && rpce.Severity == netconf.ErrSevWarning {
+				diags.AddWarning(fmt.Sprintf("warning while reading device %s config", ds), err.Error())
+				return nil
+			}
 			diags.AddError(fmt.Sprintf("failed while reading device %s config", ds), err.Error())
 			return nil
+
 		}
 
 		c.cacheOk = true

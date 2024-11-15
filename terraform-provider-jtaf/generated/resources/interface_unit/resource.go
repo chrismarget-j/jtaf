@@ -3,12 +3,12 @@ package resourceinterfaceunit
 import (
 	"context"
 	"encoding/xml"
-	"github.com/nemith/netconf"
 
 	"github.com/chrismarget-j/jtaf/terraform-provider-jtaf/common"
 	providerdata "github.com/chrismarget-j/jtaf/terraform-provider-jtaf/provider_data"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 var _ resource.ResourceWithConfigure = (*Resource)(nil)
@@ -46,8 +46,12 @@ func (r *Resource) Create(ctx context.Context, req resource.CreateRequest, resp 
 	}
 	plan.Id = common.XPathHash(plan.XPath)
 
-	var x xmlModel
-	x.loadTfData(ctx, common.ObjectValueFromAttrTyper(ctx, &plan, &resp.Diagnostics), &resp.Diagnostics)
+	planObj := common.ObjectValueFromAttrTyper(ctx, &plan, &resp.Diagnostics)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	x := newXmlModel(ctx, planObj, &resp.Diagnostics)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -84,12 +88,33 @@ func (r *Resource) Read(ctx context.Context, req resource.ReadRequest, resp *res
 	}
 
 	state.loadXmlData(ctx, &x, &resp.Diagnostics)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }
 
 func (r *Resource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	panic("not implemented")
+	var planObj types.Object
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &planObj)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	x := newXmlModel(ctx, planObj, &resp.Diagnostics)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	parentXPath := planObj.Attributes()["parent_xpath"].(types.String)
+
+	r.client.SetConfig(ctx, parentXPath, x, &resp.Diagnostics)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &planObj)...)
 }
 
 func (r *Resource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
@@ -100,7 +125,7 @@ func (r *Resource) Delete(ctx context.Context, req resource.DeleteRequest, resp 
 	}
 
 	var x xmlModel
-	x.XmlAttrOperation = netconf.DeleteConfig
+	x.Operation = common.RemoveConfig
 
 	r.client.SetConfig(ctx, state.ParentXPath, x, &resp.Diagnostics)
 	if resp.Diagnostics.HasError() {

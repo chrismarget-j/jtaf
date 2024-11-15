@@ -17,5 +17,14 @@
     - `to-802.1p-from-dscp`
   - no leaf nodes begin with something other than `a-z` and `A-Z`
   - looks like we need to handle only `-` (0x2d) and `.` (0x2e)
-- set XMLName on everything (remove parent struct tag?)
+- ~~set XMLName on everything (remove parent struct tag?)~~
 - ~~reintroduce 'id' attribute as hash of xpath~~
+- ~~make common string and int64 xml value+operation types (replace existing oft-repeated types)~~
+- create the myXmlObj struct
+  - with rawXML and parent xpath inside
+  - implements xml.Marshaler
+- ~~solve removing singlenested objects from Junos~~
+- handle error: `rpc error: statement not found`
+  - reproduce using interface config with only name+parent xpath.
+  - when child/unit is removed via `terraform destroy`, parent object will vanish leading to error
+

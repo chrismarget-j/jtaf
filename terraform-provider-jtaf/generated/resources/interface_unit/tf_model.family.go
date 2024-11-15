@@ -7,8 +7,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/objectplanmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -26,7 +24,7 @@ func (t *tfModelFamily) AttrTypes() map[string]attr.Type {
 
 func (t *tfModelFamily) attributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
-		"inet": schema.SingleNestedAttribute{Optional: true, Attributes: (*tfModelFamilyInet)(nil).attributes(), PlanModifiers: []planmodifier.Object{objectplanmodifier.RequiresReplace()}},
+		"inet": schema.SingleNestedAttribute{Optional: true, Attributes: (*tfModelFamilyInet)(nil).attributes()},
 	}
 }
 
@@ -35,9 +33,14 @@ func (t *tfModelFamily) loadXmlData(ctx context.Context, x *xmlModelFamily, diag
 		return
 	}
 
+	t.Inet = tfModelFamilyInetNull()
 	if x.Inet != nil {
-		var inet tfModelFamilyInet
-		inet.loadXmlData(ctx, x.Inet, diags)
-		t.Inet = common.ObjectValueFromAttrTyper(ctx, &inet, diags)
+		var o tfModelFamilyInet
+		o.loadXmlData(ctx, x.Inet, diags)
+		t.Inet = common.ObjectValueFromAttrTyper(ctx, &o, diags)
 	}
+}
+
+func tfModelFamilyNull() types.Object {
+	return types.ObjectNull((*tfModelFamily)(nil).AttrTypes())
 }

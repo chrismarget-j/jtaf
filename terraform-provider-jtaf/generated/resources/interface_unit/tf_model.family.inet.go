@@ -7,8 +7,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
@@ -26,7 +24,7 @@ func (t *tfModelFamilyInet) AttrTypes() map[string]attr.Type {
 
 func (t *tfModelFamilyInet) attributes() map[string]schema.Attribute {
 	return map[string]schema.Attribute{
-		"arp_max_cache": schema.Int64Attribute{Optional: true, PlanModifiers: []planmodifier.Int64{int64planmodifier.RequiresReplace()}},
+		"arp_max_cache": schema.Int64Attribute{Optional: true},
 	}
 }
 
@@ -35,5 +33,9 @@ func (t *tfModelFamilyInet) loadXmlData(ctx context.Context, x *xmlModelFamilyIn
 		return
 	}
 
-	t.ArpMaxCache = types.Int64PointerValue(x.ArpMaxCache)
+	t.ArpMaxCache = types.Int64PointerValue(x.ArpMaxCache.ValuePointer())
+}
+
+func tfModelFamilyInetNull() types.Object {
+	return types.ObjectNull((*tfModelFamilyInet)(nil).AttrTypes())
 }
