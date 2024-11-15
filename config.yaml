@@ -7,7 +7,7 @@ junos_family: junos
 #junos_family: junos-evo
 #junos_family: junos-ex
 #junos_family: junos-qfx
-junos_version: 23.1R2
+junos_version: 23.1R1
 yang_patches:
   - original_git_sha: 0acaaa26d84570516d6983a4d9211969b743b916
     required_sha_256: 07ef6ddc587977d652ecdc9a0b84486171da34cda7081ff78578c1542addf73a
