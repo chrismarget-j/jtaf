@@ -38,3 +38,18 @@ func newXmlModel(ctx context.Context, v types.Object, diags *diag.Diagnostics) *
 		NativeInnerVlanId: values.NewXmlInt64(ctx, tfData.NativeInnerVlanId, diags),
 	}
 }
+
+func delXmlModel(ctx context.Context, v types.Object, diags *diag.Diagnostics) *xmlModel {
+	var tfData tfModel
+	if !v.IsNull() {
+		diags.Append(v.As(ctx, &tfData, basetypes.ObjectAsOptions{})...)
+		if diags.HasError() {
+			return nil
+		}
+	}
+
+	return &xmlModel{
+		Operation: common.RemoveConfig,
+		Name:      values.NewXmlString(ctx, tfData.Name, diags),
+	}
+}

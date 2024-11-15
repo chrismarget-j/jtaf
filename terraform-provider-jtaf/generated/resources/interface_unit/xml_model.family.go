@@ -29,3 +29,17 @@ func newXmlModelFamily(ctx context.Context, v types.Object, diags *diag.Diagnost
 		Inet:      newXmlModelFamilyInet(ctx, tfData.Inet, diags),
 	}
 }
+
+func delXmlModelFamily(ctx context.Context, v types.Object, diags *diag.Diagnostics) *xmlModelFamily {
+	var tfData tfModelFamily
+	if !v.IsNull() {
+		diags.Append(v.As(ctx, &tfData, basetypes.ObjectAsOptions{})...)
+		if diags.HasError() {
+			return nil
+		}
+	}
+
+	return &xmlModelFamily{
+		Operation: common.RemoveConfig,
+	}
+}

@@ -30,3 +30,17 @@ func newXmlModelFamilyInet(ctx context.Context, v types.Object, diags *diag.Diag
 		ArpMaxCache: values.NewXmlInt64(ctx, tfData.ArpMaxCache, diags),
 	}
 }
+
+func delXmlModelFamilyInet(ctx context.Context, v types.Object, diags *diag.Diagnostics) *xmlModelFamilyInet {
+	var tfData tfModelFamilyInet
+	if !v.IsNull() {
+		diags.Append(v.As(ctx, &tfData, basetypes.ObjectAsOptions{})...)
+		if diags.HasError() {
+			return nil
+		}
+	}
+
+	return &xmlModelFamilyInet{
+		Operation: common.RemoveConfig,
+	}
+}

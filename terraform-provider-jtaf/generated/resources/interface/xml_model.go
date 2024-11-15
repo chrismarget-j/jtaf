@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/xml"
 
+	"github.com/chrismarget-j/jtaf/terraform-provider-jtaf/common"
 	"github.com/chrismarget-j/jtaf/terraform-provider-jtaf/common/values"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -32,5 +33,20 @@ func newXmlModel(ctx context.Context, v types.Object, diags *diag.Diagnostics) *
 		Name:        values.NewXmlString(ctx, tfData.Name, diags),
 		Description: values.NewXmlString(ctx, tfData.Description, diags),
 		Mtu:         values.NewXmlInt64(ctx, tfData.Mtu, diags),
+	}
+}
+
+func delXmlModel(ctx context.Context, v types.Object, diags *diag.Diagnostics) *xmlModel {
+	var tfData tfModel
+	if !v.IsNull() {
+		diags.Append(v.As(ctx, &tfData, basetypes.ObjectAsOptions{})...)
+		if diags.HasError() {
+			return nil
+		}
+	}
+
+	return &xmlModel{
+		Operation: common.RemoveConfig,
+		Name:      values.NewXmlString(ctx, tfData.Name, diags),
 	}
 }

@@ -118,16 +118,25 @@ func (r *Resource) Update(ctx context.Context, req resource.UpdateRequest, resp 
 }
 
 func (r *Resource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	var state tfModel
-	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	var stateObj types.Object
+	resp.Diagnostics.Append(req.State.Get(ctx, &stateObj)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	var x xmlModel
-	x.Operation = common.RemoveConfig
+	x := delXmlModel(ctx, stateObj, &resp.Diagnostics)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
-	r.client.SetConfig(ctx, state.ParentXPath, x, &resp.Diagnostics)
+	parentXPath := stateObj.Attributes()["parent_xpath"].(types.String)
+
+	r.client.SetConfig(ctx, parentXPath, x, &resp.Diagnostics)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	r.client.SetConfig(ctx, parentXPath, x, &resp.Diagnostics)
 	if resp.Diagnostics.HasError() {
 		return
 	}
