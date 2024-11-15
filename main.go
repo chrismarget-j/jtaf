@@ -37,6 +37,11 @@ func main() {
 		log.Fatal(fmt.Errorf("while populating yang cache - %w", err))
 	}
 
+	log.Println("yang files are in:")
+	for _, d := range yangDirs {
+		log.Println(" - " + d)
+	}
+
 	breadcrumbTrails, err := junos.GetConfigBreadcrumbTrails(cfg.JunosConfigFile)
 	if err != nil {
 		log.Fatal(fmt.Errorf("while parsing device config file %q - %w", cfg.JunosConfigFile, err))

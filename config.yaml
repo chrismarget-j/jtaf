@@ -2,7 +2,7 @@
 git_ref: master
 cache_dir: /tmp/.jtaf_cache
 junos_config_xml: test_data/test.xml
-junos_family: junos
+junos_family: junos-es
 junos_version: 23.1R1
 yang_patches:
   - original_git_sha: 0acaaa26d84570516d6983a4d9211969b743b916
@@ -20,3 +20,30 @@ yang_patches:
               }
             }
             container processes {
+github_yang_paths:
+  22.4R1:
+    junos:
+      - 22.4/22.4R1/common
+      - 22.4/22.4R1/junos/conf
+    junos-es:
+      - 22.4/22.4R1/common
+      - 22.4/22.4R1/junos-es/conf
+    junos-ex:
+      - 22.4/22.4R1/common
+      - 22.4/22.4R1/junos-ex/conf
+    junos-qfx:
+      - 22.4/22.4R1/common
+      - 22.4/22.4R1/junos-qfx/conf
+  23.1R1:
+    junos:
+      - 23.1/23.1R1/common
+      - 23.1/23.1R1/junos/conf
+    junos-es:
+      - 23.1/23.1R1/common
+      - 23.1/23.1R1/junos-es/conf
+    junos-ex:
+      - 23.1/23.1R1/common
+      - 23.1/23.1R1/junos-ex/conf
+    junos-qfx:
+      - 23.1/23.1R1/common
+      - 23.1/23.1R1/junos-qfx/conf

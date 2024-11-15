@@ -42,26 +42,18 @@ func repoContentByDir(ctx context.Context, dir string, cfg jtafcfg.Cfg, client *
 // yangFilesRepoContent returns map[string]github.RepositoryContent keyed by path within the repository
 // The result describes yang files available
 func yangFilesRepoContent(ctx context.Context, cfg jtafcfg.Cfg, client *github.Client) (map[string]github.RepositoryContent, error) {
-	commonYangFiles, err := repoContentByDir(ctx, cfg.RepoDirYangCommon(), cfg, client)
-	if err != nil {
-		return nil, fmt.Errorf("while getting common yang file URLs - %w", err)
+	yangFiles := make(map[string]github.RepositoryContent)
+	for _, repoDir := range cfg.RepoYangDirs() {
+		m, err := repoContentByDir(ctx, repoDir, cfg, client)
+		if err != nil {
+			return nil, fmt.Errorf("while getting yang file URLs from %q - %w", repoDir, err)
+		}
+		for k, v := range m {
+			yangFiles[k] = v
+		}
 	}
 
-	familyYangFiles, err := repoContentByDir(ctx, cfg.RepoDirYangFamily(), cfg, client)
-	if err != nil {
-		return nil, fmt.Errorf("while getting platform yang file URLs - %w", err)
-	}
-
-	// copy both maps into a single map
-	allYangFiles := make(map[string]github.RepositoryContent, len(commonYangFiles)+len(familyYangFiles))
-	for k, v := range familyYangFiles {
-		allYangFiles[k] = v
-	}
-	for k, v := range commonYangFiles {
-		allYangFiles[k] = v
-	}
-
-	return allYangFiles, nil
+	return yangFiles, nil
 }
 
 // cacheRepositoryContent downloads a github.RepositoryContent into the cache dir
@@ -138,10 +130,13 @@ func populateYangCacheFromGithub(ctx context.Context, cfg jtafcfg.Cfg, httpClien
 
 	urlPath := strings.TrimSuffix(path.Join(cfg.YamlRepoInfo.Owner, cfg.YamlRepoInfo.Name, cfg.YamlRepoInfo.Ref), "/")
 	if client.BaseURL != nil {
-		urlPath = path.Join(client.BaseURL.String() + urlPath)
+		if strings.HasSuffix(client.BaseURL.String(), "/") {
+			urlPath = client.BaseURL.String() + urlPath
+		} else {
+			urlPath = client.BaseURL.String() + "/" + urlPath
+		}
 	}
-
-	log.Printf("Populating cache from %s...\n", urlPath)
+	log.Printf("Populating cache from %s ...\n", urlPath)
 
 	repoPathToRepositoryContent, err := yangFilesRepoContent(ctx, cfg, client)
 	if err != nil {

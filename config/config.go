@@ -3,11 +3,11 @@ package jtafCfg
 import (
 	"flag"
 	"fmt"
+	"github.com/chrismarget-j/jtaf/data/yang"
 	"log"
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -23,7 +23,7 @@ const (
 	yangCommonDir          = "common"
 	yangConfDir            = "conf"
 	junosVersionRegexp     = `^((\d\d)\.\d+)R\d+.*`
-	cacheFreshnessMarker   = ".cache_updated"
+	cacheFreshnessMarker   = ".cache_updated_%s_%s"
 )
 
 var flagC = flag.String("c", defaultConfigFile, "YAML config file")
@@ -41,7 +41,7 @@ type Cfg struct {
 	JunosFamily          string
 	BaseCacheDir         string
 	YangPatches          map[string]Patch
-	repoYangDir          string
+	repoYangDirs         []string
 	cacheRefreshInterval time.Duration
 }
 
@@ -102,10 +102,6 @@ func (o *Cfg) JunosYangCacheDir() string {
 	return path.Clean(path.Join(o.YangCacheDir(), "github.com", o.YamlRepoInfo.Owner, o.YamlRepoInfo.Name, ref))
 }
 
-func (o *Cfg) otherYangCacheDir() string {
-	return path.Clean(path.Join(o.YangCacheDir(), "ietf"))
-}
-
 func Get() (Cfg, error) {
 	flag.Parse()
 
@@ -115,15 +111,16 @@ func Get() (Cfg, error) {
 	}
 
 	var yamlConfig struct {
-		DeviceConfigFile     string  `yaml:"junos_config_xml"`
-		Family               string  `yaml:"junos_family"`
-		Version              string  `yaml:"junos_version"`
-		GitRef               string  `yaml:"git_ref"`
-		GithubOwnerName      string  `yaml:"github_owner_name"`
-		GithubRepoName       string  `yaml:"github_repo_name"`
-		CacheDir             string  `yaml:"cache_dir"`
-		YangPatches          []Patch `yaml:"yang_patches"`
-		CacheRefreshInterval *int    `yaml:"cache_refresh_interval"`
+		DeviceConfigFile     string                         `yaml:"junos_config_xml"`
+		Family               string                         `yaml:"junos_family"`
+		Version              string                         `yaml:"junos_version"`
+		GitRef               string                         `yaml:"git_ref"`
+		GithubOwnerName      string                         `yaml:"github_owner_name"`
+		GithubRepoName       string                         `yaml:"github_repo_name"`
+		CacheDir             string                         `yaml:"cache_dir"`
+		YangPatches          []Patch                        `yaml:"yang_patches"`
+		GithubYangPaths      map[string]map[string][]string `yaml:"github_yang_paths"`
+		CacheRefreshInterval *int                           `yaml:"cache_refresh_interval"`
 	}
 
 	err = yaml.Unmarshal(cfgBytes, &yamlConfig)
@@ -154,9 +151,9 @@ func Get() (Cfg, error) {
 		return Cfg{}, fmt.Errorf("family must be one of %s, got %q", osFamilies.Members(), yamlConfig.Family)
 	}
 
-	s := regexp.MustCompile(junosVersionRegexp).FindStringSubmatch(yamlConfig.Version)
-	if len(s) != 3 {
-		return Cfg{}, fmt.Errorf("failed to parse junos version %q - version should look like 23.1R1 or 23.4R1.10", yamlConfig.Version)
+	repoYangDirs, ok := yamlConfig.GithubYangPaths[yamlConfig.Version][yamlConfig.Family]
+	if !ok {
+		return Cfg{}, fmt.Errorf("unknown github location for %q version %q YAML files - check the configuration", yamlConfig.Family, yamlConfig.Version)
 	}
 
 	yangPatches := make(map[string]Patch, len(yamlConfig.YangPatches))
@@ -170,7 +167,7 @@ func Get() (Cfg, error) {
 	result := Cfg{
 		JunosVersion:         yamlConfig.Version,
 		JunosFamily:          family.Value,
-		repoYangDir:          path.Join(s[1], yamlConfig.Version),
+		repoYangDirs:         repoYangDirs,
 		BaseCacheDir:         yamlConfig.CacheDir,
 		JunosConfigFile:      deviceConfigFile,
 		YangPatches:          yangPatches,
@@ -185,16 +182,24 @@ func Get() (Cfg, error) {
 	return result, nil
 }
 
-func (o *Cfg) RepoDirYangCommon() string {
-	return path.Join(o.repoYangDir, yangCommonDir)
+func (o *Cfg) LocalYangDirs() []string {
+	result := make([]string, len(o.repoYangDirs))
+	for i, ryd := range o.repoYangDirs {
+		result[i] = path.Join(o.YangCacheDir(), "github.com", o.YamlRepoInfo.Owner, o.YamlRepoInfo.Name, "@"+o.YamlRepoInfo.Ref, ryd)
+	}
+
+	for k := range yang.Files {
+		result = append(result, path.Join(o.YangCacheDir(), path.Dir(k)))
+	}
+	return result
 }
 
-func (o *Cfg) RepoDirYangFamily() string {
-	return path.Join(o.repoYangDir, o.JunosFamily, yangConfDir)
+func (o *Cfg) RepoYangDirs() []string {
+	return o.repoYangDirs
 }
 
 func (o *Cfg) cacheTouchFile() string {
-	return path.Join(o.YangCacheDir(), cacheFreshnessMarker)
+	return path.Join(o.YangCacheDir(), fmt.Sprintf(cacheFreshnessMarker, o.JunosFamily, o.JunosVersion))
 }
 
 func (o *Cfg) UpdateCacheFreshnessMarker() {

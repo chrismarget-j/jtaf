@@ -19,9 +19,13 @@ func Populate(ctx context.Context, cfg jtafCfg.Cfg, httpClient *http.Client) ([]
 
 	if cfg.CacheIsFresh() {
 		log.Println("YANG cache is fresh - skipping update.")
-		result, err := yang.PathsWithModules(cfg.YangCacheDir())
-		if err != nil {
-			return nil, fmt.Errorf("while discovering cached yang dirs in %q - %w", cfg.YangCacheDir(), err)
+		var result []string
+		for _, localDir := range cfg.LocalYangDirs() {
+			ypwm, err := yang.PathsWithModules(localDir)
+			if err != nil {
+				return nil, fmt.Errorf("while discovering cached yang dirs in %q - %w", localDir, err)
+			}
+			result = append(result, ypwm...)
 		}
 
 		return result, nil

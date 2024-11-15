@@ -29,3 +29,5 @@
   - when child/unit is removed via `terraform destroy`, parent object will vanish leading to error
 - validate correctness of caller-supplied parent_xpath
 - ~~remove `JoinNonEmptyPartsWithUnderscores()`~~
+- Explore other versions of the git repo
+- ~~`YangCacheDir()` needs to return a version-specific response~~
