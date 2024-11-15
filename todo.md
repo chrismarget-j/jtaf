@@ -27,4 +27,5 @@
 - handle error: `rpc error: statement not found`
   - reproduce using interface config with only name+parent xpath.
   - when child/unit is removed via `terraform destroy`, parent object will vanish leading to error
-
+- validate correctness of caller-supplied parent_xpath
+- remove `JoinNonEmptyPartsWithUnderscores()`

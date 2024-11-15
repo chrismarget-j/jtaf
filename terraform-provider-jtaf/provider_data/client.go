@@ -24,10 +24,10 @@ type Client struct {
 	cache         []byte
 }
 
-func (c *Client) SetConfig(ctx context.Context, parentPath types.String, v any, diags *diag.Diagnostics) {
+func (c *Client) SetConfig(ctx context.Context, xpath string, v any, diags *diag.Diagnostics) {
 	ds := netconf.Candidate
 
-	pp, err := xsel.BuildExpr(parentPath.ValueString())
+	pp, err := xsel.BuildExpr(xpath)
 	if err != nil {
 		diags.AddAttributeError(path.Root("parent_path"), "failed to parse xpath", err.Error())
 		return
@@ -54,11 +54,22 @@ func (c *Client) SetConfig(ctx context.Context, parentPath types.String, v any, 
 	err = c.session.EditConfig(ctx, ds, []byte(payload))
 	if err != nil {
 		var rpce netconf.RPCError
-		if errors.As(err, &rpce) && rpce.Severity == netconf.ErrSevWarning {
-			diags.AddWarning(fmt.Sprintf("warning while editing device %s config", ds), err.Error())
+		if errors.As(err, &rpce) {
+			if rpce.Severity == netconf.ErrSevWarning {
+				diags.AddWarning(
+					fmt.Sprintf("%s: %s", rpce.Tag, rpce.Message),
+					fmt.Sprintf("info: %s\npayload:\n%s", rpce.Info, payload),
+				)
+				return
+			}
+			diags.AddError(fmt.Sprintf("%s: %s", rpce.Tag, rpce.Message), string(rpce.Info))
+			diags.AddError(
+				fmt.Sprintf("%s: %s", rpce.Tag, rpce.Message),
+				fmt.Sprintf("info: %s\npayload:\n%s", rpce.Info, payload),
+			)
 			return
 		}
-		diags.AddError(fmt.Sprintf("failed while editing device %s config", ds), err.Error())
+		diags.AddError("while setting config", err.Error())
 		return
 	}
 }
@@ -74,13 +85,17 @@ func (c *Client) GetConfig(ctx context.Context, path types.String, diags *diag.D
 		c.cache, err = c.session.GetConfig(ctx, ds)
 		if err != nil {
 			var rpce netconf.RPCError
-			if errors.As(err, &rpce) && rpce.Severity == netconf.ErrSevWarning {
-				diags.AddWarning(fmt.Sprintf("warning while reading device %s config", ds), err.Error())
+			if errors.As(err, &rpce) {
+				if rpce.Severity == netconf.ErrSevWarning {
+					diags.AddWarning(fmt.Sprintf("%s: %s", rpce.Tag, rpce.Message), string(rpce.Info))
+				} else {
+					diags.AddError(fmt.Sprintf("%s: %s", rpce.Tag, rpce.Message), string(rpce.Info))
+					return nil
+				}
+			} else {
+				diags.AddError("while setting config", err.Error())
 				return nil
 			}
-			diags.AddError(fmt.Sprintf("failed while reading device %s config", ds), err.Error())
-			return nil
-
 		}
 
 		c.cacheOk = true

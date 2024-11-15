@@ -1,3 +1,7 @@
 package common
 
-const XmlIndent = "    "
+const (
+	ResourceNameSep = "__"
+	XPathRoot       = "/configuration"
+	XmlIndent       = "    "
+)

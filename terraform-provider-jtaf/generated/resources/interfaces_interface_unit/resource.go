@@ -1,8 +1,10 @@
-package resourceinterface
+package interfacesinterfaceunit
 
 import (
 	"context"
 	"encoding/xml"
+	"path"
+	"strings"
 
 	"github.com/chrismarget-j/jtaf/terraform-provider-jtaf/common"
 	providerdata "github.com/chrismarget-j/jtaf/terraform-provider-jtaf/provider_data"
@@ -18,7 +20,9 @@ type Resource struct {
 }
 
 func (r *Resource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
-	resp.TypeName = common.JoinNonEmptyPartsWithUnderscores(req.ProviderTypeName, parentType, myType)
+	xpath := strings.TrimPrefix(RawXPath, common.XPathRoot)
+	resourceTypeName := strings.ReplaceAll(xpath, "/", common.ResourceNameSep)
+	resp.TypeName = req.ProviderTypeName + resourceTypeName
 }
 
 func (r *Resource) Schema(_ context.Context, _ resource.SchemaRequest, resp *resource.SchemaResponse) {
@@ -40,7 +44,7 @@ func (r *Resource) Create(ctx context.Context, req resource.CreateRequest, resp 
 		return
 	}
 
-	plan.XPath = common.AddPath(plan.ParentXPath, myType, plan.Name, &resp.Diagnostics)
+	plan.XPath = common.AddPath(plan.ParentXPath, path.Join(xPathPrefix, xPathBase), plan.Name, &resp.Diagnostics)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -56,7 +60,8 @@ func (r *Resource) Create(ctx context.Context, req resource.CreateRequest, resp 
 		return
 	}
 
-	r.client.SetConfig(ctx, plan.ParentXPath, x, &resp.Diagnostics)
+	xpath := path.Join(plan.ParentXPath.ValueString(), xPathPrefix)
+	r.client.SetConfig(ctx, xpath, x, &resp.Diagnostics)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -108,8 +113,8 @@ func (r *Resource) Update(ctx context.Context, req resource.UpdateRequest, resp 
 	}
 
 	parentXPath := planObj.Attributes()["parent_xpath"].(types.String)
-
-	r.client.SetConfig(ctx, parentXPath, x, &resp.Diagnostics)
+	xpath := path.Join(parentXPath.ValueString(), xPathPrefix)
+	r.client.SetConfig(ctx, xpath, x, &resp.Diagnostics)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -130,13 +135,8 @@ func (r *Resource) Delete(ctx context.Context, req resource.DeleteRequest, resp 
 	}
 
 	parentXPath := stateObj.Attributes()["parent_xpath"].(types.String)
-
-	r.client.SetConfig(ctx, parentXPath, x, &resp.Diagnostics)
-	if resp.Diagnostics.HasError() {
-		return
-	}
-
-	r.client.SetConfig(ctx, parentXPath, x, &resp.Diagnostics)
+	xpath := path.Join(parentXPath.ValueString(), xPathPrefix)
+	r.client.SetConfig(ctx, xpath, x, &resp.Diagnostics)
 	if resp.Diagnostics.HasError() {
 		return
 	}

@@ -1,4 +1,4 @@
-package resourceinterfaceunit
+package interfacesinterfaceunitfamilyinetaddress
 
 import (
 	"context"
@@ -13,12 +13,10 @@ import (
 )
 
 type xmlModel struct {
-	XMLName           xml.Name               `xml:"unit"`
-	Operation         *netconf.MergeStrategy `xml:"operation,attr,omitempty"`
-	Name              *values.XmlString      `xml:"name"`
-	Description       *values.XmlString      `xml:"description,omitempty"`
-	Family            *xmlModelFamily        `xml:"family,omitempty"`
-	NativeInnerVlanId *values.XmlInt64       `xml:"native-inner-vlan-id,omitempty"`
+	XMLName   xml.Name               `xml:"address"`
+	Operation *netconf.MergeStrategy `xml:"operation,attr,omitempty"`
+	Name      *values.XmlString      `xml:"name"`
+	Primary   *values.XmlBool        `xml:"primary,omitempty"`
 }
 
 func newXmlModel(ctx context.Context, v types.Object, diags *diag.Diagnostics) *xmlModel {
@@ -31,11 +29,8 @@ func newXmlModel(ctx context.Context, v types.Object, diags *diag.Diagnostics) *
 	}
 
 	return &xmlModel{
-		Operation:         common.MergeStrategyFromValue(v),
-		Name:              values.NewXmlString(ctx, tfData.Name, diags),
-		Description:       values.NewXmlString(ctx, tfData.Description, diags),
-		Family:            newXmlModelFamily(ctx, tfData.Family, diags),
-		NativeInnerVlanId: values.NewXmlInt64(ctx, tfData.NativeInnerVlanId, diags),
+		Name:    values.NewXmlString(ctx, tfData.Name, diags),
+		Primary: values.NewXmlBool(ctx, tfData.Primary, diags),
 	}
 }
 

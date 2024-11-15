@@ -1,4 +1,4 @@
-package resourceinterface
+package interfacesinterfaceunitfamilyinetaddress
 
 import (
 	"context"
@@ -21,8 +21,7 @@ type tfModel struct {
 	XPath       types.String `tfsdk:"xpath"`
 	Name        types.String `tfsdk:"name"`
 	ParentXPath types.String `tfsdk:"parent_xpath"`
-	Description types.String `tfsdk:"description"`
-	Mtu         types.Int64  `tfsdk:"mtu"`
+	Primary     types.Bool   `tfsdk:"primary"`
 }
 
 func (t *tfModel) AttrTypes() map[string]attr.Type {
@@ -31,8 +30,7 @@ func (t *tfModel) AttrTypes() map[string]attr.Type {
 		"xpath":        types.StringType,
 		"name":         types.StringType,
 		"parent_xpath": types.StringType,
-		"description":  types.StringType,
-		"mtu":          types.Int64Type,
+		"primary":      types.BoolType,
 	}
 }
 
@@ -42,8 +40,7 @@ func (t *tfModel) attributes() map[string]schema.Attribute {
 		"xpath":        schema.StringAttribute{Computed: true, PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
 		"name":         schema.StringAttribute{Required: true, PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}},
 		"parent_xpath": schema.StringAttribute{Required: true, PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()}, Validators: []validator.String{stringvalidator.RegexMatches(common.XPathRegex, common.XPathRegexMsg)}},
-		"description":  schema.StringAttribute{Optional: true},
-		"mtu":          schema.Int64Attribute{Optional: true},
+		"primary":      schema.BoolAttribute{Optional: true},
 	}
 }
 
@@ -53,8 +50,7 @@ func (t *tfModel) loadXmlData(ctx context.Context, x *xmlModel, diags *diag.Diag
 	}
 
 	t.Name = types.StringPointerValue(x.Name.ValuePointer())
-	t.Description = types.StringPointerValue(x.Description.ValuePointer())
-	t.Mtu = types.Int64PointerValue(x.Mtu.ValuePointer())
+	t.Primary = types.BoolPointerValue(x.Primary.ValuePointer())
 }
 
 func tfModelNull() types.Object {

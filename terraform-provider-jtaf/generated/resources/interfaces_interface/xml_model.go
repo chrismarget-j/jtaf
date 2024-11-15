@@ -1,4 +1,4 @@
-package resourceinterface
+package interfacesinterface
 
 import (
 	"context"
