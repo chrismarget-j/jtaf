@@ -14,8 +14,10 @@ skip_regexes+=("^README.md$")
 skip_regexes+=("^Third_Party_Code/.*$")
 skip_regexes+=("^\.gitignore$")
 skip_regexes+=("^\.notices.tpl$")
-skip_regexes+=("^go.mod$")
-skip_regexes+=("^go.sum$")
+skip_regexes+=("/go.mod$")
+skip_regexes+=("/go.sum$")
+skip_regexes+=("^todo.*$")
+skip_regexes+=("^test_data/.*$")
 
 copyright_template="Copyright \\(c\\) Juniper Networks, Inc\\., %s-%s\\."
 arr_line="All rights reserved\."
@@ -26,7 +28,7 @@ problem_files=()
 problem_headers=()
 
 # loop over files changed relative to "main" branch
-for file in $(git diff --name-only origin/main)
+for file in $(git ls-files)
 do
   # skip over non-files and files which don't exist in this branch
   [ ! -f "$file" ] && continue

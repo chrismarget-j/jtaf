@@ -1,4 +1,8 @@
 ---
+#  Copyright (c) Juniper Networks, Inc., 2024-2024.
+#  All rights reserved.
+#  SPDX-License-Identifier: Apache-2.0
+
 git_ref: master
 cache_dir: /tmp/.jtaf_cache
 junos_config_xml: test_data/test.xml

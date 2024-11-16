@@ -1,2 +1,0 @@
-- term for the <name> phenomenon?
-- safe to assume that <name>something</name> can only appear once?
