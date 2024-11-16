@@ -2,7 +2,7 @@
 #  All rights reserved.
 #  SPDX-License-Identifier: Apache-2.0
 
-name: Go package
+name: Check For License Headers
 
 on: [push]
 
