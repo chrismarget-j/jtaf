@@ -108,7 +108,7 @@ func Get() (Cfg, error) {
 	flag.Parse()
 
 	cfgBytes, err := os.ReadFile(*flagC)
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		return Cfg{}, fmt.Errorf("while reading config file %q - %w", *flagC, err)
 	}
 
@@ -125,10 +125,20 @@ func Get() (Cfg, error) {
 		CacheRefreshInterval *int                           `yaml:"cache_refresh_interval"`
 	}
 
-	err = yaml.Unmarshal(cfgBytes, &yamlConfig)
-	if err != nil {
-		return Cfg{}, fmt.Errorf("while parsing config file %q - %w", *flagC, err)
+	if len(cfgBytes) != 0 {
+		err = yaml.Unmarshal(cfgBytes, &yamlConfig)
+		if err != nil {
+			return Cfg{}, fmt.Errorf("while parsing config file %q - %w", *flagC, err)
+		}
 	}
+
+	fromEnv("junos_config_xml", &yamlConfig.DeviceConfigFile)
+	fromEnv("junos_family", &yamlConfig.Family)
+	fromEnv("junos_version", &yamlConfig.Version)
+	fromEnv("git_ref", &yamlConfig.GitRef)
+	fromEnv("github_owner_name", &yamlConfig.GithubOwnerName)
+	fromEnv("github_repo_name", &yamlConfig.GithubRepoName)
+	fromEnv("cache_dir", &yamlConfig.CacheDir)
 
 	if yamlConfig.CacheRefreshInterval == nil {
 		cri := defaultCacheInterval
